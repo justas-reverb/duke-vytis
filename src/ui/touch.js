@@ -8,14 +8,22 @@
 // into Input and hands onKey its codes) because a pad has buttons of its own that the screens
 // name; a phone has none, so its buttons are the keys the screens already name.
 //
-// Which buttons:
+// Which buttons, each only on the screens that have a use for it (main.js touchKeys: the title
+// has none of them -- its own buttons are drawn on it, below -- and ^ v only where a cursor
+// moves; the user, 2026-09-29: "up and down arrows appear on the main menu when they do nothing
+// there"):
 //   < >      the arrows, held -- a thumb slides from one to the other without lifting
 //   SPACE    the jump, held as long as the finger is down (HOLD TO CHAIN); start, choose, skip
 //   ESC      the pause in a run, back everywhere else
-//   ^ v      the menus' up and down, put away in a run
-//   the top row: the keys the last frame drew as keycaps (menuskin.js watchCaps) -- S H O R on
-//            the title, S Q on the pause, R G on the scoreboard -- so what a screen offers is
-//            what its hints say, with no second list of every screen's keys to go stale.
+//   ^ v      the menus' up and down
+//   the top row: the keys the last frame drew as keycaps (menuskin.js watchCaps) -- S Q on the
+//            pause, R G on the scoreboard -- so what a screen offers is what its hints say, with
+//            no second list of every screen's keys to go stale.
+// Their size is the player's: TOUCH KEYS on the options screen, 60% to 130% of the first cut,
+// 80% by default ("the left / right / space buttons should be smaller and adjustable").
+//
+// And TAPPABLE THINGS the screen draws (`targets`, in view units): the title's TAP TO CLIMB and
+// its four buttons. A finger that lands on one and lifts on it presses that one's key.
 //
 // Every button is placed in CSS pixels from the viewport alone (touchLayout), and the same
 // numbers place the elements and hit-test the fingers: the element under a finger is never
@@ -30,8 +38,10 @@ const MOVE = { w: 24, h: 26, gap: 2 };    // < and >, side by side at the bottom
 const ARROW = { w: 24, h: 15, gap: 2 };   // ^ and v, stacked over them [u]
 const JUMP = 34;                          // SPACE, round, bottom right: its diameter [u]
 const KEY_H = 12;                         // ESC and the top row's keys: their height [u]
+const ESC_W = 13;                         // ESC's width [u]: its word and a margin (17 until the wings: see touchLayout)
 const KEY_GAP = 2;                        // between the top row's keys [u]
 const SLOP = 2;                           // how far outside a button a finger still presses it [u]
+const MIN_APART = 6;                      // the least room between < > and SPACE, however big [u]
 
 /**
  * How long a key stays in the top row after a frame last drew its keycap [s; 0.25]. A hint that
@@ -85,32 +95,65 @@ const keyOf = (code) => KEY_OF[code] || (code.startsWith('Key') ? code.slice(3).
  * Where every button goes, in CSS pixels from the viewport's top left: { id: { x, y, w, h } },
  * the top row's keys as 'key:' + legend, right-aligned in `strip`'s order. Sized from the short
  * side, so held sideways or upright the buttons are the same size under the thumbs.
+ *
+ * `size` is TOUCH KEYS, and it sizes the keys a run is played on -- < > ^ v and SPACE, the ones
+ * the user asked to be "smaller and adjustable" -- as far as the width has room for them side by
+ * side (upright, a phone's 100 u across fits them at 110%). ESC and the top row keep the first
+ * cut's size: they are found rarely, and in a hurry.
+ *
+ * The camera's cut-out, since the page runs edge to edge: `holes`, where the cut-outs ARE --
+ * [{ x0, y0, x1, y1 }] in CSS px, from the Android app (gameShell.cutouts) -- and then a key
+ * stands clear of a hole only when it is beside one. Else `inset`, the page's safe-area insets,
+ * all a browser says: a band down the whole side, and every key on that side clear of it. A
+ * punch-hole camera sits in the middle of a phone's short edge, and its band is the status bar's
+ * whole height: pushed off the band, ESC stood over the HUD's floor counter and < > ^ v over the
+ * options' words (the emulator's Pixel 6, 2026-09-29). ESC is 13 u wide, not the first cut's 17,
+ * so that where a band is all there is, it still clears the counter.
  */
-export function touchLayout(vw, vh, strip = []) {
-  const u = Math.min(vw, vh) / 100;
-  const m = M * u;
+export function touchLayout(vw, vh, strip = [], size = 1, inset = null, holes = null) {
+  const k = Math.min(vw, vh) / 100;
+  const m = M * k;
+  const gap = KEY_GAP * k;
+  // Where a key between rows y0 and y1 may start, and where one may end.
+  const leftAt = (y0, y1) => {
+    if (!holes) return m + ((inset && inset.l) || 0);
+    let x = m;
+    for (const h of holes) if (h.x0 < vw / 2 && h.y0 < y1 + gap && h.y1 > y0 - gap) x = Math.max(x, h.x1 + gap);
+    return x;
+  };
+  const rightAt = (y0, y1) => {
+    if (!holes) return vw - m - ((inset && inset.r) || 0);
+    let x = vw - m;
+    for (const h of holes) if (h.x1 > vw / 2 && h.y0 < y1 + gap && h.y1 > y0 - gap) x = Math.min(x, h.x0 - gap);
+    return x;
+  };
+  const fits = ((rightAt(0, vh) - leftAt(0, vh)) / k - MIN_APART) / (2 * MOVE.w + MOVE.gap + JUMP);
+  const u = k * Math.min(size, fits);
   const r = {};
   const moveY = vh - m - MOVE.h * u;
-  r.left = { x: m, y: moveY, w: MOVE.w * u, h: MOVE.h * u };
-  r.right = { x: m + (MOVE.w + MOVE.gap) * u, y: moveY, w: MOVE.w * u, h: MOVE.h * u };
+  const L = leftAt(moveY, vh - m);
+  r.left = { x: L, y: moveY, w: MOVE.w * u, h: MOVE.h * u };
+  r.right = { x: L + (MOVE.w + MOVE.gap) * u, y: moveY, w: MOVE.w * u, h: MOVE.h * u };
   // Over the gap between < and >, a little clear of them, so a thumb running left and right
-  // does not brush one.
-  const ax = m + ((2 * MOVE.w + MOVE.gap - ARROW.w) / 2) * u;
-  r.down = { x: ax, y: moveY - (ARROW.gap + 1 + ARROW.h) * u, w: ARROW.w * u, h: ARROW.h * u };
-  r.up = { x: ax, y: r.down.y - (ARROW.gap + ARROW.h) * u, w: ARROW.w * u, h: ARROW.h * u };
-  r.jump = { x: vw - m - JUMP * u, y: vh - m - JUMP * u, w: JUMP * u, h: JUMP * u };
-  r.esc = { x: m, y: m, w: 17 * u, h: KEY_H * u };
+  // does not brush one -- or clear of a hole beside them.
+  const downY = moveY - (ARROW.gap + 1 + ARROW.h) * u, upY = downY - (ARROW.gap + ARROW.h) * u;
+  const ax = Math.max(L + ((2 * MOVE.w + MOVE.gap - ARROW.w) / 2) * u, leftAt(upY, downY + ARROW.h * u));
+  r.down = { x: ax, y: downY, w: ARROW.w * u, h: ARROW.h * u };
+  r.up = { x: ax, y: upY, w: ARROW.w * u, h: ARROW.h * u };
+  const jumpY = vh - m - JUMP * u;
+  r.jump = { x: rightAt(jumpY, vh - m) - JUMP * u, y: jumpY, w: JUMP * u, h: JUMP * u };
+  r.esc = { x: leftAt(m, m + KEY_H * k), y: m, w: ESC_W * k, h: KEY_H * k };
   // Right-aligned from the top right corner, and onto a second line under the first where a
   // line would reach ESC: a phone held upright has 100 u across, and the replays' list offers
   // eight keys.
-  const left = r.esc.x + r.esc.w + KEY_GAP * u;
-  let x = vw - m, y = m;
+  const left = r.esc.x + r.esc.w + gap;
+  let y = m, Rt = rightAt(y, y + KEY_H * k), x = Rt;
   for (let i = strip.length - 1; i >= 0; i--) {
-    const w = Math.max(KEY_H, 5 + 4.4 * strip[i].length) * u;
-    if (x - w < left && x < vw - m) { x = vw - m; y += (KEY_H + KEY_GAP) * u; }
+    const w = Math.max(KEY_H, 5 + 4.4 * strip[i].length) * k;
+    if (x - w < left && x < Rt) { y += (KEY_H + KEY_GAP) * k; Rt = rightAt(y, y + KEY_H * k); x = Rt; }
     x -= w;
-    r['key:' + strip[i]] = { x, y, w, h: KEY_H * u };
-    x -= KEY_GAP * u;
+    r['key:' + strip[i]] = { x, y, w, h: KEY_H * k };
+    x -= gap;
   }
   return r;
 }
@@ -152,13 +195,26 @@ export class TouchControls {
    * @param opts.win     whose innerWidth and innerHeight the buttons are laid out in (window)
    * @param opts.doc     where the buttons are made (document); one with no body makes none and
    *                     the controls work the same, driven through pointer() (the tests)
-   * @param opts.mode    () => 'run' or 'menu': in a run ^ and v are put away
+   * @param opts.mode    () => 'run' or 'menu': a held arrow repeats only outside a run
+   * @param opts.keys    () => the ids of the fixed buttons this screen has a use for (all of
+   *                     FIXED's when not given)
+   * @param opts.size    () => the keys' size, a fraction of the first cut's (TOUCH KEYS)
+   * @param opts.targets () => what the screen draws to be tapped, [{ x, y, w, h, code }] in
+   *                     view units
+   * @param opts.toView  (x, y) => [vx, vy]: a finger's CSS pixels in view units
    */
-  constructor({ target, win, doc, mode = () => 'menu' } = {}) {
+  constructor({ target, win, doc, mode = () => 'menu', keys = null, size = () => 1, targets = () => [], toView = null } = {}) {
     this.target = target || globalThis.window;
     this.win = win || globalThis.window;
     this.doc = doc || globalThis.document;
     this.mode = mode;
+    this.keys = keys || (() => FIXED.map((b) => b.id));
+    this.size = size;
+    this.targets = targets;
+    this.toView = toView;
+    this.inset = { l: 0, r: 0, t: 0, b: 0 };
+    this.holes = null;           // the camera's cut-outs from the Android app, CSS px (readHoles)
+    this.pressedCode = null;     // the tappable thing a finger is on now, for the screen to light
     this.seen = new Set();       // the legends the last frame drew as keycaps (main.js watchCaps)
     this.lastSeen = new Map();   // legend -> the clock when a frame last drew it
     this.t = 0;                  // this clock [s]
@@ -173,8 +229,30 @@ export class TouchControls {
     // A blur empties Input's held keys; the fingers still down let go here too, or a thumb on >
     // when the phone locked would come back as a key never released.
     if (this.target && this.target.addEventListener) this.target.addEventListener('blur', () => this.releaseAll());
+    // Where the camera's holes are, from the Android app: asked now, and sent again when the
+    // phone turns over (MainActivity, the 'app:cutouts' event).
+    this.readHoles();
+    if (this.win && this.win.addEventListener) this.win.addEventListener('app:cutouts', (e) => this.readHoles(e && e.detail));
     this.relayout();
     this.mount();
+  }
+
+  /**
+   * The camera's cut-outs, [[left, top, right, bottom], ...] in the screen's pixels -- `list`, or
+   * asked of the Android app (gameShell.cutouts) -- in CSS px. None told (a browser): null, and
+   * the layout keeps to the page's safe-area band instead.
+   */
+  readHoles(list) {
+    try {
+      const shell = this.win && this.win.gameShell;
+      const raw = list !== undefined ? list
+        : shell && typeof shell.cutouts === 'function' ? JSON.parse(shell.cutouts()) : null;
+      if (!Array.isArray(raw)) { this.holes = null; return; }
+      const d = (this.win && this.win.devicePixelRatio) || 1;
+      this.holes = raw.map(([l, t, r, b]) => ({ x0: l / d, y0: t / d, x1: r / d, y1: b / d }));
+    } catch (e) {
+      this.holes = null;
+    }
   }
 
   /** The set the frame's drawing collects its keycaps into, emptied (main.js renderFrame). */
@@ -216,14 +294,17 @@ export class TouchControls {
   /** Lay the buttons out again if the viewport, the mode or the top row changed. */
   relayout() {
     const vw = (this.win && this.win.innerWidth) || 0, vh = (this.win && this.win.innerHeight) || 0;
-    const run = this.mode() === 'run';
+    const shown = this.keys();
+    const size = this.size() || 1;
     const strip = this.strip();
-    const sig = `${vw}x${vh}|${run ? 'run' : 'menu'}|${strip.join(',')}`;
+    const i = this.inset, holes = this.holes;
+    const hs = holes ? holes.map((h) => `${h.x0},${h.y0},${h.x1},${h.y1}`).join(';') : '-';
+    const sig = `${vw}x${vh}|${shown.join(',')}|${size}|${i.l},${i.r}|${hs}|${strip.join(',')}`;
     if (sig === this.sig) return;
     this.sig = sig;
-    const R = touchLayout(vw, vh, strip);
+    const R = touchLayout(vw, vh, strip, size, i, holes);
     const list = [];
-    for (const b of FIXED) if (!(run && b.menu)) list.push({ ...b, ...R[b.id] });
+    for (const b of FIXED) if (shown.includes(b.id)) list.push({ ...b, ...R[b.id] });
     for (const label of strip) list.push({ id: 'key:' + label, code: capCode(label), label, ...R['key:' + label] });
     this.list = list;
     this.dirty = true;
@@ -248,20 +329,43 @@ export class TouchControls {
     return best;
   }
 
+  /** The tappable thing the screen drew under a finger at (x, y), or null. */
+  targetAt(x, y) {
+    if (!this.toView) return null;
+    const [vx, vy] = this.toView(x, y);
+    for (const t of this.targets() || []) {
+      if (vx >= t.x && vx <= t.x + t.w && vy >= t.y && vy <= t.y + t.h) return t;
+    }
+    return null;
+  }
+
   /**
    * A finger: `type` 'down', 'move' or 'up' (a cancel is an up), `id` its pointerId, (x, y) in
    * CSS pixels. True if it is on a button. Each finger holds one key; two on one key hold it once.
+   * A finger on a tappable thing the screen drew presses its key when it lifts ON it, as a tap on
+   * a phone's button does -- a thumb that slides off lets it go.
    */
   pointer(type, id, x, y) {
     if (type === 'down') {
       this.relayout();
       const b = this.hit(x, y);
-      this.fingers.set(id, b ? { id: b.id, code: b.code } : { id: null, code: null });
+      const t = b ? null : this.targetAt(x, y);
+      this.fingers.set(id, b ? { id: b.id, code: b.code } : { id: null, code: null, tap: t ? t.code : null });
       if (b) this.press(b.code);
-      return !!b;
+      if (t) { this.pressedCode = t.code; }
+      return !!(b || t);
     }
     const f = this.fingers.get(id);
     if (!f) return false;
+    if (f.tap) {
+      const t = this.targetAt(x, y);
+      const on = !!t && t.code === f.tap;
+      if (type === 'move') { this.pressedCode = on ? f.tap : null; return true; }
+      this.fingers.delete(id);
+      this.pressedCode = null;
+      if (on && type === 'up') { this.send('keydown', f.tap, false); this.send('keyup', f.tap, false); }
+      return true;
+    }
     if (type === 'move') {
       // A thumb running on the arrows slides from one to the other: once it is over the other's
       // width, whatever its height, it lets go of this one and takes that. Off both it keeps the
@@ -301,6 +405,7 @@ export class TouchControls {
 
   /** Every finger lets go. */
   releaseAll() {
+    this.pressedCode = null;
     this.fingers.clear();
     for (const code of [...this.held.keys()]) { this.held.set(code, 1); this.release(code); }
   }
@@ -340,8 +445,23 @@ export class TouchControls {
     on('pointerdown', 'down');
     on('pointermove', 'move');
     on('pointerup', 'up');
-    on('pointercancel', 'up');
+    on('pointercancel', 'cancel');
     root.addEventListener('contextmenu', (e) => e.preventDefault());
+    // The camera's cut-out, as the page's safe-area insets (index.html asks for viewport-fit=cover,
+    // so the page runs under it): read off a probe padded by them, now and on every resize.
+    const probe = d.createElement('div');
+    probe.style.cssText = 'position:fixed;visibility:hidden;pointer-events:none;'
+      + 'padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)';
+    d.body.appendChild(probe);
+    const readInset = () => {
+      try {
+        const cs = this.win.getComputedStyle(probe);
+        this.inset = { l: parseFloat(cs.paddingLeft) || 0, r: parseFloat(cs.paddingRight) || 0,
+          t: parseFloat(cs.paddingTop) || 0, b: parseFloat(cs.paddingBottom) || 0 };
+      } catch (e) { /* no styles: none */ }
+    };
+    readInset();
+    if (this.win.addEventListener) this.win.addEventListener('resize', readInset);
     this.root = root;
     this.dirty = true;
     this.render();

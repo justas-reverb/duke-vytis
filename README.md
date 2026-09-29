@@ -11,30 +11,41 @@ through twelve worlds -- from the Basement to the Zenith -- before the rising fl
 ## Download and play (Windows)
 
 1. Open the **[latest release](https://github.com/justas-reverb/duke-vytis/releases/latest)**
-   and download **`Duke-Vytis-1.0.0-setup.exe`**.
+   and download **`Duke-Vytis-1.0.1-setup.exe`**.
 2. Run it. Windows will probably say *"Windows protected your PC"*: the installer is not
    code-signed (a signing certificate costs money every year), so Windows does not know it
    yet. Click **More info**, then **Run anyway**.
 3. Choose where to install it, or keep the default. No administrator rights are needed. It
    adds a **Duke Vytis** shortcut to your desktop and Start menu.
 
-Rather not install anything? Download **`Duke-Vytis-1.0.0-portable.exe`** from the same page
+Rather not install anything? Download **`Duke-Vytis-1.0.1-portable.exe`** from the same page
 instead: one file, double-click it and play.
 
 **You need** Windows 10 or 11 (64-bit), and a keyboard or a gamepad (Xbox, PlayStation, Steam
 Deck and other standard pads all work). **To uninstall:** Settings > Apps > Duke Vytis >
 Uninstall.
 
+### iPhone, iPad, or any phone -- in the browser
+
+Open **[justas-reverb.github.io/duke-vytis](https://justas-reverb.github.io/duke-vytis/)**
+and turn the phone sideways. For full screen, save it to your home screen and play from the
+icon: in Safari tap **Share**, then **Add to Home Screen**; in Chrome, **Install app**. Records
+and settings stay in that browser. No sound on an iPhone? The ring/silent switch mutes it. It
+also plays on a computer's browser, with the keyboard or a gamepad. New, and not yet tried on
+many phones: tell us how it runs on yours.
+
 ### Android (test build)
 
-Download **`Duke-Vytis-1.0.0.apk`** from the same release page on your phone and open it.
+Download **`Duke-Vytis-1.0.1.apk`** from the same release page on your phone and open it.
 Android will ask once whether the app you opened it from (your browser, or Files) may install
-apps -- it is not from the Play Store -- so allow it. Hold the phone sideways: the game draws
-its own keys on the screen, < and > to run, a big SPACE to jump (hold it to chain), ESC to
-pause, and along the top whatever keys the screen you are on offers. Android 7 or newer.
+apps -- it is not from the Play Store -- so allow it. A newer build installs over the last and
+keeps your records. Hold the phone sideways: the title screen is buttons -- TAP TO CLIMB, and
+OPTIONS, STATS, REPLAYS and HELP -- and in a run the game draws its own keys, < and > to run, a
+big SPACE to jump (hold it to chain) and ESC to pause. **TOUCH KEYS** in the options makes them
+bigger or smaller. Android 7 or newer.
 
-It is a test build: it has been played on an emulator, not yet on many real phones, and
-saving replays to a file does not work in it yet. Tell us how it runs on yours.
+It is a test build: played on an emulator and one real phone so far, and saving replays to a
+file does not work in it yet. Tell us how it runs on yours.
 
 ---
 

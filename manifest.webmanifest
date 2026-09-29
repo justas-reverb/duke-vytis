@@ -1,0 +1,14 @@
+{
+  "name": "Duke Vytis and the Quest for New Lands",
+  "short_name": "Duke Vytis",
+  "description": "A pixel-art tower climber: run, jump and bounce up a burning tower before the flames catch you.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#05030a",
+  "theme_color": "#05030a",
+  "icons": [
+    { "src": "assets/icon.png", "sizes": "256x256", "type": "image/png", "purpose": "any" }
+  ]
+}

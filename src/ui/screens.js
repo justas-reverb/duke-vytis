@@ -16,7 +16,7 @@ import { THEMES } from '../game/themes.js';
 import { COMBO_TIERS, airJumpWords } from '../game/flavour.js';
 import { derived } from '../game/stats.js';
 import { ACHIEVEMENTS, progress } from '../game/achievements.js';
-import { OPTIONS, isFullscreen, DEFAULTS, PLATFORM_WORDS, GRAVITY_WORDS } from '../game/settings.js';
+import { optionsFor, isFullscreen, DEFAULTS, PLATFORM_WORDS, GRAVITY_WORDS } from '../game/settings.js';
 import {
   boardSkinFor, fallSkinFor, boardLine, boardFade, drawBoardPanel, drawBoardTitle, PANELS, STAT_AT,
   IMPACT_WORDS, BOARD_INKS, BOARD_PROMPT, BOARD_KEYS, BOARD_KEYS_GAP, KEYS_ROWS,
@@ -24,7 +24,7 @@ import {
 import { replayWarmList } from '../render/replayskin.js';
 import { IMPACT_FADE } from '../game/constants.js';
 import { newCanvas, touchCanvas } from '../render/canvases.js';
-import { mHints, mPromptOn } from '../render/menuskin.js';
+import { mHints, mPromptOn, menuWarmNow } from '../render/menuskin.js';
 
 export const PAGES = ['RECORDS', 'AVERAGES', 'THE TOWER', 'AWARDS'];
 
@@ -290,6 +290,8 @@ const SOUND_WORDS = ['CLICK OR PRESS A KEY', 'TO ENABLE SOUND'];
  * Nothing the page can do lets the pad start it, so this says what will.
  */
 const SOUND_PAD_WORDS = ['A PAD CANNOT START SOUND:', 'CLICK OR PRESS A KEY'];
+/** The notice on a phone, which has no key to press: its first tap starts the sound. */
+const SOUND_TOUCH_WORDS = ['TAP THE SCREEN', 'TO ENABLE SOUND'];
 /** The tab: 4 units over the first line and under the last, 8 either side of the widest. */
 const SOUND_TAB = { dy: -4, h: 15, pad: 8 };
 const SOUND_LEAD = 9;   // [view units] from one line's top to the next's: 7 of letter, 2 of gap
@@ -326,7 +328,7 @@ export const SOUND_PLACES = {
  * a phrase a line, and a phrase too wide broken between words.
  */
 function soundLines(pad, w = Infinity) {
-  const words = pad ? SOUND_PAD_WORDS : SOUND_WORDS;
+  const words = pad === 'touch' ? SOUND_TOUCH_WORDS : pad ? SOUND_PAD_WORDS : SOUND_WORDS;
   const whole = words.join(' ');
   if (textWidth(whole) <= w) return [whole];
   const lines = [];
@@ -349,7 +351,7 @@ const soundPlate = (lines) => ({
 
 /**
  * The sound notice on its tab at `at` (see SOUND_PLACES; on the title, one line at SOUND_Y);
- * `pad` for the pad's wording. Each line is centred on the plate.
+ * `pad` true for the pad's wording, 'touch' for a phone's. Each line is centred on the plate.
  */
 export function drawSoundNotice(ctx, t, pad, at = { y: SOUND_Y }) {
   const lines = soundLines(pad, at.w);
@@ -363,7 +365,12 @@ export function drawSoundNotice(ctx, t, pad, at = { y: SOUND_Y }) {
  *  stats' own: the old flat dark, warmed a step toward the plates' plum. */
 const MENU_BG = '#0d080e';
 
-export function drawMenu(ctx, all, t, frameT, liveBackdrop = false, soundBlocked = false) {
+/**
+ * The title screen. `soundBlocked`: false, or the notice's wording (true for the keys', 'pad',
+ * 'touch'). `touch`: null on a desktop; on a phone { pressed }, the key of the button a finger is
+ * on now (ui/touch.js pressedCode), and the key hints become buttons (TOUCH_BUTTONS, below).
+ */
+export function drawMenu(ctx, all, t, frameT, liveBackdrop = false, soundBlocked = false, touch = null) {
   // The other screens' pieces, one a frame while this one is up (menuskin.js).
   warmMenu();
   if (!liveBackdrop) {
@@ -402,11 +409,12 @@ export function drawMenu(ctx, all, t, frameT, liveBackdrop = false, soundBlocked
   // composite (menuskin.js mCompose): a hundred glyph and keycap blits drawn once and kept
   // until a run sets a new best.
   const has = all.totalRuns > 0;
-  const recs = drawLower(ctx, all);
+  const recs = touch ? drawTouchLower(ctx, all, t, touch.pressed) : drawLower(ctx, all);
 
   // Always there, breathing: it used to blink off for a fifth of every cycle, so a player
-  // glancing at the screen could see no prompt at all.
-  mPrompt(ctx, VW / 2, 170, t);
+  // glancing at the screen could see no prompt at all. On a phone, the button in its place.
+  if (touch) drawClimb(ctx, t, touch.pressed === 'Space');
+  else mPrompt(ctx, VW / 2, 170, t);
 
   // Browsers refuse to make a sound until the page has had a real click or keypress,
   // and there is no way to ask nicely. Say so, rather than letting the player conclude
@@ -414,7 +422,10 @@ export function drawMenu(ctx, all, t, frameT, liveBackdrop = false, soundBlocked
   // silver to gold rather than blinking between two oranges, on a tab mounted on the
   // prompt's top rail (SOUND_Y), as a panel's title sits on its rail. `soundBlocked` is
   // 'pad' once a pad has been used, for the pad's wording.
-  if (soundBlocked) drawSoundNotice(ctx, t, soundBlocked === 'pad');
+  if (soundBlocked) {
+    const kind = soundBlocked === 'pad' ? true : soundBlocked === 'touch' ? 'touch' : false;
+    drawSoundNotice(ctx, t, kind, touch ? { y: TOUCH_SOUND_Y } : undefined);
+  }
 
   // The records' moment of shine: a sparkle on one of them, in the cycles the title's
   // glint sits out (menuskin.js shine).
@@ -428,23 +439,151 @@ export function drawMenu(ctx, all, t, frameT, liveBackdrop = false, soundBlocked
 
 /** The lower plaque with the records and the key hints on it, as one composite; returns the records. */
 function drawLower(ctx, all) {
-  const has = all.totalRuns > 0;
+  const { has, recs, pr, awards } = titleRecords(all);
   const low = lowerPlate(has);
-  // Two on the top line, well apart, and the awards on their own beneath. All three
-  // centred on one line ran together into an unreadable strip.
-  const recs = has ? [['BEST FLOOR', String(all.bestFloor), VW / 2 - 96], ['BEST SCORE', fmtNum(all.bestScore), VW / 2 + 96]] : [];
-  const pr = has ? progress(all) : null;
-  const awards = pr ? pr.got + '/' + pr.total : '';
   // Two families: the keys alone (a first run, painted ahead) and the records, which a new
   // best replaces.
   mCompose(ctx, has ? 'records' : 'keys', recs.map((r) => r[1]).concat(awards).join(':'), low.x, low.y, low.w, low.h, (g) => {
     mPlate(g, 'lower', low.x, low.y, low.w, low.h);
-    for (const [label, value, cx] of recs) statLine(g, label, value, 'gold', cx, 196);
-    if (pr) statLine(g, 'AWARDS', awards, VALUE2, VW / 2, 210);
+    drawRecords(g, recs, pr, awards);
     for (const [pairs, y, gap] of MENU_KEYS) mKeyLine(g, pairs, VW / 2, y, 'center', gap);
   });
   return recs;
 }
+// ---------------------------------------------------------------------------
+// THE TITLE SCREEN ON A PHONE (drawMenu's `touch`). A phone has no keys to name, so what the key
+// hints said becomes things to tap: TAP TO CLIMB where PRESS SPACE TO CLIMB stands, and a button
+// for each screen a key opens, on the plaque where the hints stood -- the user, 2026-09-29, "can
+// we rebuild a nice menu screen for the mobile version so its easier to use?". What a finger hits
+// is what is drawn (menuTargets), in the same view units.
+
+/**
+ * TAP TO CLIMB [view units]: about the prompt's width, where it stood, a thumb tall. The view is
+ * about 411 CSS px tall on a phone held sideways, 1.5 px a unit, so 34 units is about 52 px:
+ * Android's 48 dp touch target, and a little.
+ */
+const CLIMB = { w: 236, h: 34, y: 150 };
+export const CLIMB_WORDS = 'TAP TO CLIMB';
+/** The row of buttons [view units]: its top and height, a word's pad each side, the gap between. */
+const TOUCH_ROW = { y: 226, h: 30, pad: 10, gap: 8 };
+/**
+ * Each button's word and the key it presses: the title's own keys (O S R H), OPTIONS first --
+ * it holds TOUCH KEYS, the size of the keys in a run. At scale 2 and 10 a side the row is 410
+ * units wide, the title box's own width, so the screen's top and bottom line up.
+ */
+const TOUCH_BUTTONS = [['OPTIONS', 'KeyO'], ['STATS', 'KeyS'], ['REPLAYS', 'KeyR'], ['HELP', 'KeyH']];
+/** How far past its plate a finger still presses a button [view units; half the row's gap]. */
+const TOUCH_SLOP = 4;
+/** The sound notice on the phone's title [view row]: over TAP TO CLIMB, where it cannot cover it. */
+const TOUCH_SOUND_Y = 132;
+
+let touchRow = null;
+/** The four buttons laid out, [{ word, code, x, y, w, h }]: each its word and TOUCH_ROW.pad a side, the row centred. */
+function touchButtons() {
+  if (touchRow) return touchRow;
+  const ws = TOUCH_BUTTONS.map(([word]) => textWidth(word, 2) + 2 * TOUCH_ROW.pad);
+  let x = Math.round((VW - ws.reduce((a, b) => a + b, 0) - TOUCH_ROW.gap * (ws.length - 1)) / 2);
+  touchRow = TOUCH_BUTTONS.map(([word, code], i) => {
+    const b = { word, code, x, y: TOUCH_ROW.y, w: ws[i], h: TOUCH_ROW.h };
+    x += ws[i] + TOUCH_ROW.gap;
+    return b;
+  });
+  return touchRow;
+}
+const climbBox = () => ({ x: Math.round(VW / 2 - CLIMB.w / 2), y: CLIMB.y, w: CLIMB.w, h: CLIMB.h });
+
+/**
+ * The phone's plaque [view units]: under the records and the buttons, its top rail under TAP TO
+ * CLIMB's foot, as the desktop's lies under the prompt's -- or round the buttons alone before a
+ * first run, when there are no records.
+ */
+function touchPlate(records) {
+  const row = touchButtons(), last = row[row.length - 1];
+  const x0 = row[0].x - 8, x1 = last.x + last.w + 8;
+  const y0 = records ? CLIMB.y + CLIMB.h - 6 : TOUCH_ROW.y - 10;
+  return { x: x0, y: y0, w: x1 - x0, h: TOUCH_ROW.y + TOUCH_ROW.h + 10 - y0 };
+}
+
+let touchTargets = null;
+/**
+ * What a finger can tap on the phone's title screen, [{ x, y, w, h, code }] in view units: TAP TO
+ * CLIMB (SPACE) and the four buttons, each grown by TOUCH_SLOP so a thumb a little off still
+ * presses it -- never into a neighbour's, which is two slops away.
+ */
+export function menuTargets() {
+  if (touchTargets) return touchTargets;
+  const s = TOUCH_SLOP, grow = (b, code) => ({ x: b.x - s, y: b.y - s, w: b.w + 2 * s, h: b.h + 2 * s, code });
+  touchTargets = [grow(climbBox(), 'Space'), ...touchButtons().map((b) => grow(b, b.code))];
+  return touchTargets;
+}
+
+/**
+ * TAP TO CLIMB: crimson enamel in a gold rim, its glint crossing on the prompt's clock -- a
+ * menu's selected row made big, the one thing on the screen to press. Under a finger it sinks
+ * into a dark plate, the words a unit lower.
+ */
+function drawClimb(ctx, t, pressed) {
+  const c = climbBox();
+  const ty = c.y + Math.round((c.h - 14) / 2);
+  if (pressed) mPlate(ctx, 'lower', c.x, c.y, c.w, c.h);
+  else mSelect(ctx, c.x, c.y, c.w, c.h, t);
+  mLine(ctx, 'gold', CLIMB_WORDS, VW / 2, ty + (pressed ? 1 : 0), 2, 'center');
+}
+
+/** A button of the row: a plate and its word in silver; under a finger, the selected row's crimson and gold. */
+function touchButton(ctx, b, on, t) {
+  if (on) mSelect(ctx, b.x, b.y, b.w, b.h, t);
+  else mPlate(ctx, 'panel', b.x, b.y, b.w, b.h);
+  mLine(ctx, on ? 'gold' : 'argent', b.word, b.x + b.w / 2, b.y + Math.round((b.h - 14) / 2), 2, 'center');
+}
+
+/** The phone's plaque with the records and the buttons on it, as one composite, and the pressed one over it; returns the records. */
+function drawTouchLower(ctx, all, t, pressed) {
+  const { has, recs, pr, awards } = titleRecords(all);
+  const low = touchPlate(has);
+  mCompose(ctx, has ? 'touch-records' : 'touch-keys', recs.map((r) => r[1]).concat(awards).join(':'), low.x, low.y, low.w, low.h, (g) => {
+    mPlate(g, 'lower', low.x, low.y, low.w, low.h);
+    drawRecords(g, recs, pr, awards);
+    for (const b of touchButtons()) touchButton(g, b, false, 0);
+  });
+  for (const b of touchButtons()) if (b.code === pressed) touchButton(ctx, b, true, t);
+  return recs;
+}
+
+/**
+ * The phone title's pieces, painted now (main.js, at load, on a phone): its first frame draws
+ * them, and a run can start a second in.
+ */
+export function warmTouch() {
+  const list = [
+    warm.select(CLIMB.w, CLIMB.h), warm.plate('lower', CLIMB.w, CLIMB.h), warm.line(CLIMB_WORDS, 2, 'gold'),
+    ...touchButtons().flatMap((b) => [warm.plate('panel', b.w, b.h), warm.select(b.w, b.h),
+      warm.line(b.word, 2, 'argent'), warm.line(b.word, 2, 'gold')]),
+    ...[true, false].map((r) => warm.plate('lower', touchPlate(r).w, touchPlate(r).h)),
+    warm.draw((g) => drawTouchLower(g, { totalRuns: 0 }, 0, null)),
+    warm.line(ATTRACT_TAP, 2, 'gold'), warm.line('HOW TO CLIMB', 2, 'gold'),
+    warm.plate('panel', soundPlate(soundLines('touch')).w, soundPlate(soundLines('touch')).h),
+    warm.plate('panel', textWidth(HELP_BACK_TOUCH) + 16, 15),
+  ];
+  menuWarmNow(list);
+}
+
+/** The records on a title plaque, the desktop's or the phone's: the two, then the awards under them. */
+function drawRecords(g, recs, pr, awards) {
+  for (const [label, value, cx] of recs) statLine(g, label, value, 'gold', cx, 196);
+  if (pr) statLine(g, 'AWARDS', awards, VALUE2, VW / 2, 210);
+}
+
+/** The title's records, for the desktop's plaque and the phone's alike. */
+function titleRecords(all) {
+  const has = all.totalRuns > 0;
+  // Two on the top line, well apart, and the awards on their own beneath. All three
+  // centred on one line ran together into an unreadable strip.
+  const recs = has ? [['BEST FLOOR', String(all.bestFloor), VW / 2 - 96], ['BEST SCORE', fmtNum(all.bestScore), VW / 2 + 96]] : [];
+  const pr = has ? progress(all) : null;
+  return { has, recs, pr, awards: pr ? pr.got + '/' + pr.total : '' };
+}
+
 /** Where a record's line starts: its label and value centred on cx, five units apart. */
 const statLeft = (label, value, cx) => Math.round(cx - (textWidth(label) + 5 + textWidth(value)) / 2);
 /** A record: the label quiet, the number in `role`. The number is what you came to read. */
@@ -474,26 +613,33 @@ const WARN = '#ff8844';
 // the rows above and below it by half a unit, and the panel ends where it did at eleven rows.
 export const OPTION_ROW = 10;
 /** Where the OPTIONS panel ends [view units]: four under the last row's letters, as ever. */
-export function optionsPanelEnd() { return 50 + OPTION_ROW * (OPTIONS.length - 1) + 11; }
+export function optionsPanelEnd(rows = optionsFor()) { return 50 + OPTION_ROW * (rows.length - 1) + 11; }
 
-export function drawOptions(ctx, settings, sel, t, loop) {
+/**
+ * The options screen. `rows`: the rows this screen shows (settings.js optionsFor -- a phone's has
+ * TOUCH KEYS first and no LOW LATENCY); `sel` indexes them. `touch`: a phone, which has no F key
+ * and is always full screen, so the fullscreen line goes and the hint names no keyboard keys.
+ */
+export function drawOptions(ctx, settings, sel, t, loop, rows = optionsFor(), touch = false) {
   ctx.fillStyle = MENU_BG;
   ctx.fillRect(0, 0, VW, VH);
   mLine(ctx, 'gold', 'OPTIONS', VW / 2, 8, 2, 'center');
 
   // The line that actually answers "why is it a tiny screen".
   const fs = isFullscreen();
-  mText(ctx, fs ? GOOD : WARN, fs ? 'FULLSCREEN: ON' : 'FULLSCREEN: OFF  <- PRESS F FOR A FULL 4K SCREEN',
-    VW / 2, 28, 'center');
+  if (!touch) {
+    mText(ctx, fs ? GOOD : WARN, fs ? 'FULLSCREEN: ON' : 'FULLSCREEN: OFF  <- PRESS F FOR A FULL 4K SCREEN',
+      VW / 2, 28, 'center');
+  }
 
   // Tall enough for every row: the panel grew with the COMPANIONS row, whose eleventh line sat
   // on the old panel's bottom edge, and the lines under it moved down. It is measured from its
   // last row now: sized from the row count at 15 apart, at 13 apart it ended on the last row's
   // letters. The lines under it keep their old distances from its end.
-  const panelEnd = optionsPanelEnd();
+  const panelEnd = optionsPanelEnd(rows);
   mPanel(ctx, 40, 42, 400, panelEnd - 42);
   let y = 50;
-  OPTIONS.forEach((o, i) => {
+  rows.forEach((o, i) => {
     const on = i === sel;
     // The selected row: crimson enamel in a gold rim where it was a lighter rectangle, the
     // pointer nudging, the label in gold. The rest stay quiet so the one row means something.
@@ -514,7 +660,7 @@ export function drawOptions(ctx, settings, sel, t, loop) {
 
   // The hint for the selected row gets its own line. Drawing it beside the value made
   // the two collide on every row long enough to be worth reading.
-  const note = OPTIONS[sel] && OPTIONS[sel].note;
+  const note = rows[sel] && rows[sel].note;
   if (note) mText(ctx, 'label', note, VW / 2, panelEnd + 6, 'center');
 
   // The two measured lines 13 and 25 under the note's line (+6): with fourteen rows the panel
@@ -525,12 +671,17 @@ export function drawOptions(ctx, settings, sel, t, loop) {
     mText(ctx, good ? GOOD : WARN, 'MEASURED ' + hz + ' FPS   ' + loop.cpuMs.toFixed(2) + ' MS/FRAME   SCALE x' +
       (Math.round((window.VYTIS_SCALE || 0) * 100) / 100) + '   BUFFER ' + SW + 'x' + SH,
       VW / 2, panelEnd + 19, 'center');
-    mText(ctx, 'label', 'YOUR SCREEN: ' + window.innerWidth + 'x' + window.innerHeight +
-      (window.screen ? '   DISPLAY ' + window.screen.width + 'x' + window.screen.height : ''),
-      VW / 2, panelEnd + 31, 'center');
+    // Not on a phone: its screen is the one it has, and in a phone's browser, where LOW LATENCY
+    // makes seventeen rows, this line ran into the hint under it.
+    if (!touch) {
+      mText(ctx, 'label', 'YOUR SCREEN: ' + window.innerWidth + 'x' + window.innerHeight +
+        (window.screen ? '   DISPLAY ' + window.screen.width + 'x' + window.screen.height : ''),
+        VW / 2, panelEnd + 31, 'center');
+    }
   }
 
-  mText(ctx, 'hint', 'UP/DOWN PICK    LEFT/RIGHT CHANGE    F FULLSCREEN    ESC BACK', VW / 2, VH - 10, 'center');
+  mText(ctx, 'hint', touch ? 'UP/DOWN PICK    LEFT/RIGHT CHANGE    ESC BACK'
+    : 'UP/DOWN PICK    LEFT/RIGHT CHANGE    F FULLSCREEN    ESC BACK', VW / 2, VH - 10, 'center');
 }
 
 // ---------------------------------------------------------------------------
@@ -552,6 +703,8 @@ const BLOCKED_PANEL = { x: 56, y: 84, w: 368, h: 94 };
 export const ATTRACT_IDLE = 10;      // s of no input on the title screen
 export const ATTRACT_FADE = 0.6;     // s the menu takes to fade out
 export const ATTRACT_PROMPT = 'PRESS ANY KEY TO CONTINUE';
+/** The same on a phone, which has no key to press. */
+export const ATTRACT_TAP = 'TAP TO CONTINUE';
 /** The prompt's flash [Hz], and how far it dims between flashes [0..1 of its alpha]. */
 const ATTRACT_FLASH = 1.2, ATTRACT_DIM = 0.2;
 /** Where it stands [view units]: the prompt's baseline, over the bottom of the view. */
@@ -562,16 +715,17 @@ const ATTRACT_Y = VH - 38;
  * cycle up and the rest dimmed to ATTRACT_DIM, never gone: a glance always finds it. On a plate,
  * as every word over the moving game stands (the menu's rule).
  */
-export function drawAttractPrompt(ctx, t, k) {
+export function drawAttractPrompt(ctx, t, k, touch = false) {
+  const words = touch ? ATTRACT_TAP : ATTRACT_PROMPT;
   // The line's own width at scale 2, as mLine measures it: the letters' spacing grows with the
   // scale, so twice the scale-1 width was 48 units short and the letters ran off both ends.
-  const w = textWidth(ATTRACT_PROMPT, 2) + 28;
+  const w = textWidth(words, 2) + 28;
   const x = Math.round(VW / 2 - w / 2);
   const wave = 0.5 + 0.5 * Math.tanh(4 * Math.cos(2 * Math.PI * ATTRACT_FLASH * t) + 1);
   const was = ctx.globalAlpha;
   ctx.globalAlpha = was * k * (ATTRACT_DIM + (1 - ATTRACT_DIM) * wave);
   mPanel(ctx, x, ATTRACT_Y - 7, w, 28);
-  mLine(ctx, 'gold', ATTRACT_PROMPT, VW / 2, ATTRACT_Y, 2, 'center');
+  mLine(ctx, 'gold', words, VW / 2, ATTRACT_Y, 2, 'center');
   ctx.globalAlpha = was;
 }
 
@@ -626,16 +780,19 @@ export function drawPaused(ctx, game, t) {
  * gold -- the one cramped box among the screens.
  */
 const HELP_PANEL = { x: 30, y: 8, w: 420, h: 225 };
+/** The help's way back on a phone, where a tap anywhere is it (main.js touchTargets). */
+const HELP_BACK_TOUCH = 'TAP TO GO BACK';
 
-export function drawHelp(ctx, t) {
+/** The help. `touch`: a phone's -- its controls are the buttons on the screen, not keys. */
+export function drawHelp(ctx, t, touch = false) {
   ctx.fillStyle = '#000000cc';
   ctx.fillRect(0, 0, VW, VH);
   mPanel(ctx, HELP_PANEL.x, HELP_PANEL.y, HELP_PANEL.w, HELP_PANEL.h);
   mLine(ctx, 'gold', 'HOW TO CLIMB', VW / 2, 16, 2, 'center');
 
   const lines = [
-    ['MOVE', 'LEFT / RIGHT  OR  A / D'],
-    ['JUMP', 'SPACE, UP, W OR Z'],
+    ['MOVE', touch ? 'THE ARROWS, BOTTOM LEFT' : 'LEFT / RIGHT  OR  A / D'],
+    ['JUMP', touch ? 'SPACE, BOTTOM RIGHT' : 'SPACE, UP, W OR Z'],
     ['HOLD JUMP', 'RE-JUMPS THE MOMENT YOU LAND.'],
     ['', 'CHAIN THEM TO KEEP A COMBO ALIVE.'],
     ['', ''],
@@ -665,9 +822,10 @@ export function drawHelp(ctx, t) {
   }
   // On a plaque of its own: it sits where the title screen's key hints are, under the wash,
   // and on them it read as one line run into another (FULLSPRESS ANY KEY).
-  const pw = textWidth('PRESS ANY KEY') + 16;
+  const back = touch ? HELP_BACK_TOUCH : 'PRESS ANY KEY';
+  const pw = textWidth(back) + 16;
   mPlate(ctx, 'panel', Math.round(VW / 2 - pw / 2), VH - 20, pw, 15);
-  mText(ctx, 'text', 'PRESS ANY KEY', VW / 2, VH - 16, 'center', breath(t, 1.6), 'label');
+  mText(ctx, 'text', back, VW / 2, VH - 16, 'center', breath(t, 1.6), 'label');
 }
 
 export { keyLine };

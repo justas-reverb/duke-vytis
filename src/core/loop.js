@@ -11,6 +11,9 @@
 
 export const STEP = 1 / 240;          // simulation tick (s)
 const MAX_FRAME = 0.25;               // never simulate more than this per frame
+// How many frames' intervals the display's rate is judged from (Loop.vsync) [frames; 15, an
+// eighth of a second at 120 Hz].
+const VSYNC_N = 15;
 
 export class Loop {
   constructor({ update, render, onStats, onFrame }) {
@@ -36,6 +39,15 @@ export class Loop {
     this.minFrame = 0;
     this._renderAcc = 0;
     this.rendered = 0;
+    // The display's own frame interval [s]: the median of the last VSYNC_N frames' intervals,
+    // 1/120 on a phone's 120 Hz panel, 1/160 on this machine's; 0 until there are VSYNC_N. A
+    // median, not a mean: a late frame, a stall or the first frame after a start is one interval
+    // of many and moves it not at all, and a display that changes its rate (a phone's panel
+    // drops from 120 Hz to 60 to save power) moves it within VSYNC_N / 2 frames.
+    this.vsync = 0;
+    this._dts = new Float64Array(VSYNC_N);
+    this._dtsSorted = new Float64Array(VSYNC_N);
+    this._dtsN = 0;
 
     // rolling perf counters
     this.frames = 0;
@@ -79,6 +91,46 @@ export class Loop {
     }, 8);
   }
 
+  /**
+   * Whether a capped frame is due, and if so, settle the governor's account.
+   *
+   * When the cap is a WHOLE number of display frames -- 60 on a phone's 120 Hz panel is two,
+   * on a 60 Hz one one -- it draws every n-th display frame, judged by time with half a frame
+   * to spare, so every drawn frame is on screen equally long. The averaging below drew a 60 cap
+   * on 120 Hz one, two or three frames apart as the callbacks jittered, and a phone showed it
+   * as a steady judder (the user's Pixel 10, 2026-09-29: "steadily choppy").
+   *
+   * Otherwise it SUBTRACTS the interval, never resets to zero. Resetting quantises the cap to a
+   * whole number of display frames -- a 60 cap on a 160 Hz panel drew every third frame, which
+   * is 53 fps, not 60. Subtracting lets the remainder carry so the average comes out right,
+   * with the cost that the gaps alternate slightly.
+   */
+  /** One frame's interval into the display's (`vsync`, above). Sorts 15 numbers; allocates nothing. */
+  _noteInterval(dt) {
+    this._dts[this._dtsN % VSYNC_N] = dt;
+    this._dtsN++;
+    if (this._dtsN < VSYNC_N) return;
+    this._dtsSorted.set(this._dts);
+    this._dtsSorted.sort();
+    this.vsync = this._dtsSorted[VSYNC_N >> 1];
+  }
+
+  _due() {
+    const n = this.vsync > 0 ? this.minFrame / this.vsync : 0;
+    const whole = Math.round(n);
+    if (whole >= 1 && Math.abs(n - whole) < 0.12) {
+      if (this._renderAcc < (whole - 0.5) * this.vsync) return false;
+      this._renderAcc = 0;
+      return true;
+    }
+    if (this._renderAcc < this.minFrame) return false;
+    this._renderAcc -= this.minFrame;
+    // Do not let the debt run away if the display is slower than the cap, or the first frame
+    // after a stall would draw several times in a row.
+    if (this._renderAcc > this.minFrame) this._renderAcc = this.minFrame;
+    return true;
+  }
+
   /** Cap the DRAW rate. 0 uncaps it; the simulation is never capped. */
   setRenderCap(fps) {
     this.minFrame = fps > 0 ? 1 / fps : 0;
@@ -104,6 +156,7 @@ export class Loop {
     if (frameMs > this.worstFrameMs) this.worstFrameMs = frameMs;
 
     const t0 = performance.now();
+    if (dt > 0) this._noteInterval(dt);
 
     if (this.onFrame) this.onFrame(dt);
 
@@ -122,15 +175,7 @@ export class Loop {
     // argument is still the live accumulator, so a capped frame is a correct frame --
     // just a less frequent one.
     this._renderAcc += dt;
-    if (this.minFrame <= 0 || this._renderAcc >= this.minFrame) {
-      // SUBTRACT the interval, never reset to zero. Resetting quantises the cap to a
-      // whole number of display frames -- a 60 cap on a 160 Hz panel drew every third
-      // frame, which is 53 fps, not 60. Subtracting lets the remainder carry so the
-      // average comes out right, with the cost that the gaps alternate slightly.
-      this._renderAcc -= this.minFrame;
-      // Do not let the debt run away if the display is slower than the cap, or the
-      // first frame after a stall would draw several times in a row.
-      if (this._renderAcc > this.minFrame) this._renderAcc = this.minFrame;
+    if (this.minFrame <= 0 || this._due()) {
       this.render(this.acc / STEP);
       this.rendered++;
     }

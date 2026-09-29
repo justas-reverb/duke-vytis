@@ -13,7 +13,7 @@ See also: [ARCHITECTURE.md](ARCHITECTURE.md) (the code the shell wraps) ·
 
 ```bash
 npm start                 # the desktop shell, fullscreen, unpackaged
-npm run dist              # dist/Duke Vytis 1.0.0 portable.exe + setup.exe
+npm run dist              # dist/Duke Vytis <version> portable.exe + setup.exe (package.json's version)
 npm run dist:dir          # the same build, unpacked into dist/win-unpacked only
 node tools/serve.mjs      # the browser build, then http://127.0.0.1:8173/
 npm run web               # dist/web/ and dist/duke-vytis-web.zip, for itch.io
@@ -42,6 +42,24 @@ sitting on a black screen. `node tools/serve.mjs` (or `npm run serve`) serves it
 `play.bat` launches Chrome (or Edge, when there is no Chrome) in `--app` mode against the
 dev server. It predates the desktop build and is kept because it is the fastest way to
 see a source change without packaging anything.
+
+## The same page on GitHub Pages: how an iPhone plays
+
+An iPhone cannot install an APK or an exe, and the App Store is out of reach for a test, so
+the public repository serves the game itself: GitHub Pages, deployed from its `main` branch,
+the root folder, at **https://justas-reverb.github.io/duke-vytis/** (switched on 2026-09-29 at
+the user's word). Nothing is built for it -- the repository's root IS a page: `index.html`
+imports `src/` by relative paths, which work from the `/duke-vytis/` subpath as they do from
+itch.io's (the walk above proves that for the package; the repository holds the same files).
+`.nojekyll` at the root keeps Pages from running the files through Jekyll, which skips
+underscore names and chokes on anything in the docs that looks like a Liquid tag. A phone's
+browser reports a coarse pointer, so the touch keys come up (`touchWanted`). `index.html`'s
+head carries a web app manifest (`manifest.webmanifest`) and Apple's home-screen tags, so the
+page saved to a home screen opens as an app of its own, full screen and without the browser's
+bars; the desktop build and the Android app ignore them, but both package the files so the
+links never 404 (`package.json`'s files, `build-web.mjs PAGE_FILES`). Every export pushed to
+`main` redeploys it within a minute or two (the Pages build is GitHub's own, on a public
+repository free of Actions minutes).
 
 ## The web package for itch.io
 
@@ -201,8 +219,8 @@ only honest way to tell is to start it and look. The unpackaged equivalent,
 
 ## The installer, `dist/`, and the shortcut
 
-`npm run dist` writes two things to `dist/`: `Duke Vytis 1.0.0 portable.exe`, one file you
-can move and double-click, and `Duke Vytis 1.0.0 setup.exe`, a per-user installer that
+`npm run dist` writes two things to `dist/`: `Duke Vytis 1.0.1 portable.exe`, one file you
+can move and double-click, and `Duke Vytis 1.0.1 setup.exe`, a per-user installer that
 asks for a directory and creates the Desktop and Start-menu shortcuts (`/S` runs it
 silently).
 
@@ -247,7 +265,7 @@ build is 100,926,306 bytes and the installer 101,199,262.
 ## The Android build: an APK for testing on a phone
 
 ```bash
-node tools/build-apk.mjs        # dist/Duke Vytis 1.0.0.apk, about 1.2 MB, debug-signed
+node tools/build-apk.mjs        # dist/Duke Vytis <version>.apk, about 1.2 MB, debug-signed
 node tools/android-smoke.mjs    # installs it on a headless emulator and plays it by touch
 ```
 
@@ -259,8 +277,14 @@ the network. It loads the page with `?touch`, which puts up the on-screen keys
 (`src/ui/touch.js`, in [ARCHITECTURE.md](ARCHITECTURE.md) *Input*), gives the page the same
 `window.gameShell` the desktop's preload gives it (quit, fullscreen), turns the phone's Back
 into Escape, and on leaving the app sends the page `app:background` (a run pauses, the sound
-stops) and on return `app:foreground`. Held sideways, fullscreen, the screen kept on, the
-camera cut-out padded round; package `lt.dukevytis.tower`, Android 7 (API 24) and up.
+stops) and on return `app:foreground`. Held sideways, fullscreen, the screen kept on, and
+edge to edge: the window runs under the camera's cut-out (`LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS`,
+`SHORT_EDGES` before Android 11) -- padded round it, it left a black band down the camera's
+side -- the game's wings fill the width past 16:9 ([ARCHITECTURE.md](ARCHITECTURE.md) *It has
+to fill a screen*), and the on-screen keys keep clear of the camera's hole, which the Activity
+hands the page (`gameShell.cutouts()`, and an `app:cutouts` event when the phone turns over;
+`viewport-fit=cover` in `index.html` for a browser's insets); package `lt.dukevytis.tower`,
+Android 7 (API 24) and up.
 
 **Built with the SDK's own tools, no Gradle**: aapt2 (the manifest and the launcher icon, made
 from `assets/icon.png` as the desktop icon is), javac against the platform's `android.jar`, d8,
@@ -279,7 +303,8 @@ USB debugging on. A newer build installs over the last; the saves stay.
 **What is not there yet**: replay files -- export and import on the REPLAYS screen are the
 browser's download and file picker, which a WebView without a download handler and a file
 chooser does nothing with (the replays themselves, the instant replay and the races work);
-and a phone's own frame rate, which nobody has measured: the emulator draws in software.
+and a phone's own frame rate, which nobody has measured: the emulator draws in software. A
+phone draws at 60 by default (`Settings.phoneDefaults`), paced on whole display frames.
 
 ## Where the bodies are buried
 

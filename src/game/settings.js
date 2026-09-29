@@ -167,7 +167,16 @@ export const DEFAULTS = {
   // a visible window the size of the panel missed one in nine with it or without (the
   // chromium-frame-timing skill), so that was the rig, not the hint. OFF if it stutters.
   lowLatency: true,
+  // See TOUCH_KEY_SIZES: how big a phone's on-screen keys are, a fraction of the first cut's.
+  touchKeys: 0.8,
 };
+
+/**
+ * TOUCH KEYS, a phone's on-screen keys' size [fraction of the first cut's; 0.8 by default]. The
+ * first cut's were the user's "should be smaller and adjustable in the settings" (2026-09-29,
+ * on a Pixel 10): four fifths of them by default, three fifths to thirteen tenths to choose.
+ */
+export const TOUCH_KEY_SIZES = [0.6, 0.7, 0.8, 0.9, 1, 1.1, 1.2, 1.3];
 
 export function load() {
   try {
@@ -205,6 +214,7 @@ export function load() {
     if (!PLATFORM_WIDTHS.includes(out.platforms)) out.platforms = DEFAULTS.platforms;
     if (!DIFFICULTY_LEVELS.includes(out.difficulty)) out.difficulty = DEFAULTS.difficulty;
     if (!GRAVITIES.includes(out.gravity)) out.gravity = DEFAULTS.gravity;
+    if (!TOUCH_KEY_SIZES.includes(out.touchKeys)) out.touchKeys = DEFAULTS.touchKeys;
     for (const k of ['scanlines', 'streaks', 'shake', 'trails', 'showFps', 'music', 'guideSeen', 'lowLatency']) {
       out[k] = !!out[k];
     }
@@ -278,7 +288,48 @@ export const OPTIONS = [
   // selecting it would do nothing at all.
   { key: 'replayGuide', action: 'guide', label: 'HOW TO PLAY', values: null,
     show: null, note: 'REPLAY THE OPENING GUIDE' },
+  // Only on a phone, and first there (optionsFor): the size of the keys on its screen. Last in
+  // this list so every other row keeps its index on a desktop, where the tools find rows by it.
+  { key: 'touchKeys', label: 'TOUCH KEYS', values: TOUCH_KEY_SIZES, touch: true,
+    show: Object.fromEntries(TOUCH_KEY_SIZES.map((v) => [String(v), Math.round(v * 100) + '%'])),
+    note: 'HOW BIG THE KEYS ON THE SCREEN ARE' },
 ];
+
+/**
+ * The rows the options screen shows: TOUCH KEYS only where there are touch keys, and first there
+ * (it is what a phone's player looks for); LOW LATENCY only where the hint can be used at all --
+ * not in Android's WebView, where the renderer never turns it on (renderer.js lowLatencyWorks) and
+ * the row would be a switch that does nothing. The rest in OPTIONS' order. One list per kind of
+ * screen, made once: the screen asks for it every frame.
+ */
+export function optionsFor({ touch = false, lowLatency = true } = {}) {
+  const k = (touch ? 't' : '') + (lowLatency ? 'l' : '');
+  let rows = shownRows.get(k);
+  if (!rows) {
+    const kept = OPTIONS.filter((o) => (!o.touch || touch) && (o.key !== 'lowLatency' || lowLatency));
+    rows = [...kept.filter((o) => o.touch), ...kept.filter((o) => !o.touch)];
+    shownRows.set(k, rows);
+  }
+  return rows;
+}
+const shownRows = new Map();
+
+/**
+ * A phone's defaults, once, when the page is first played by touch (main.js): FRAME CAP 60. A
+ * phone's panel refreshes 120 times a second and more, 8 ms a frame, and a frame the phone does
+ * not finish in time stays on screen twice as long -- the unevenness the user saw on a Pixel 10
+ * as "steadily choppy" (2026-09-29). At 60, drawn every second refresh exactly (core/loop.js),
+ * every frame has twice the time and is shown as long as the last. Marked done in the save
+ * (TOUCH_V), so a player who then chooses UNCAPPED or 120 keeps it.
+ */
+export function phoneDefaults(settings) {
+  if (settings.touchV >= TOUCH_V) return settings;
+  settings.fpsCap = 60;
+  settings.touchV = TOUCH_V;
+  save(settings);
+  return settings;
+}
+const TOUCH_V = 1;
 
 /** Rows that run something instead of holding a value. */
 export function actionFor(key) {

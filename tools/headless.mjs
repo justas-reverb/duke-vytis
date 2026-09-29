@@ -465,10 +465,35 @@ export class HeadlessCanvas {
     this.style = {};
   }
   get width() { return this[CW]; }
-  set width(v) { this[CW] = v; this[PIXELS] = new Uint8ClampedArray(this[CW] * this[CH] * 4); this[CTX] = null; }
+  set width(v) { this[CW] = v; resized(this); }
   get height() { return this[CH]; }
-  set height(v) { this[CH] = v; this[PIXELS] = new Uint8ClampedArray(this[CW] * this[CH] * 4); this[CTX] = null; }
+  set height(v) { this[CH] = v; resized(this); }
   getContext() { if (!this[CTX]) this[CTX] = new Ctx(this); return this[CTX]; }
+}
+
+/**
+ * A canvas resized: new, blank pixels -- and, as in a browser, the SAME context, moved onto them
+ * with its state back to the defaults. It used to drop the context instead, so a renderer that
+ * resized its canvas after taking the context (the side margins on a wide screen, renderer.js
+ * setWings, 2026-09-29) went on drawing into the old, detached pixels: every frame came out
+ * blank, where a browser drew them.
+ */
+function resized(canvas) {
+  canvas[PIXELS] = new Uint8ClampedArray(canvas[CW] * canvas[CH] * 4);
+  const c = canvas[CTX];
+  if (!c) return;
+  c[PIXELS] = canvas[PIXELS];
+  c[W] = canvas[CW];
+  c[H] = canvas[CH];
+  c[M] = [1, 0, 0, 1, 0, 0];
+  c[STACK] = [];
+  c[PATH] = [];
+  c[SCRATCH] = null;
+  c.fillStyle = '#000000';
+  c.strokeStyle = '#000000';
+  c.globalAlpha = 1;
+  c.lineWidth = 1;
+  c.globalCompositeOperation = 'source-over';
 }
 
 // Every name the objects above answer to that a browser's do not. The tools use `data`, `m`,

@@ -150,7 +150,7 @@ import {
 import { ReplayStore, defaultBackend } from './replaystore.js';
 
 /** package.json's version. tools/test-replay.mjs fails when the two disagree. */
-export const GAME_VERSION = '1.0.0';
+export const GAME_VERSION = '1.0.1';
 /** A shared replay's file: exportReplay's text as it is, ASCII. */
 export const FILE_EXTENSION = '.dvreplay';
 

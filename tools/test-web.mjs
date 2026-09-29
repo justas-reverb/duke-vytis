@@ -22,7 +22,15 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
-import { ROOT, PREFIX, SAMPLE_EXTS, buildAndProve, readZip, zipDir, runtimeAssets } from './build-web.mjs';
+import { ROOT, PREFIX, SAMPLE_EXTS, PAGE_FILES, buildAndProve, readZip, zipDir, runtimeAssets } from './build-web.mjs';
+
+/** A copy of the page into `dir`: index.html and what it links (the app manifest, the home-screen icon). */
+function copyPage(dir) {
+  for (const f of ['index.html', ...PAGE_FILES]) {
+    fs.mkdirSync(path.dirname(path.join(dir, f)), { recursive: true });
+    fs.copyFileSync(path.join(ROOT, f), path.join(dir, f));
+  }
+}
 import { installPage, bootMain, frame, key, makePad, press, release } from './fakepage.mjs';
 
 let bad = 0;
@@ -46,10 +54,12 @@ check(['src/main.js', 'src/core/input.js', 'src/core/gamepad.js', 'src/core/embe
 // --- what is in it --------------------------------------------------------------------
 const files = r.files;
 const topDirs = new Set(files.map((f) => f.split('/')[0]));
-const wanted = new Set(await runtimeAssets());
+// The page's own links count as wanted: the app manifest and the icon a home screen shows.
+const wanted = new Set([...await runtimeAssets(), ...PAGE_FILES]);
 const strayAssets = files.filter((f) => f.startsWith('assets/') && !wanted.has(f));
-check(files.includes('index.html') && [...topDirs].every((d) => ['index.html', 'src', 'assets'].includes(d)),
-  'the package is index.html, src/ and assets/ -- no electron/, tools/, docs/ or node_modules', [...topDirs].join(' '));
+check(files.includes('index.html') && PAGE_FILES.every((f) => files.includes(f))
+  && [...topDirs].every((d) => ['index.html', 'manifest.webmanifest', 'src', 'assets'].includes(d)),
+  'the package is index.html, its manifest, src/ and assets/ -- no electron/, tools/, docs/ or node_modules', [...topDirs].join(' '));
 check(strayAssets.length === 0, 'assets/ holds only what the game loads, none of the source sheets', strayAssets.slice(0, 4).join(' '));
 const srcCount = fs.readdirSync(path.join(ROOT, 'src'), { recursive: true })
   .filter((f) => fs.statSync(path.join(ROOT, 'src', String(f))).isFile()).length;
@@ -147,7 +157,8 @@ const electronish = [];
 for (const f of files.filter((x) => x.endsWith('.js'))) {
   const t = fs.readFileSync(path.join(OUT, f), 'utf8');
   if (/\brequire\(|ipcRenderer|from\s+['"]electron['"]|\bprocess\.|__dirname/.test(t)) electronish.push(f);
-  if (/gameShell/.test(t) && !['src/game/settings.js', 'src/core/embed.js', 'src/main.js'].includes(f)) electronish.push(f + ' (gameShell)');
+  // ui/touch.js asks the Android app's shell where the camera's holes are (gameShell.cutouts).
+  if (/gameShell/.test(t) && !['src/game/settings.js', 'src/core/embed.js', 'src/main.js', 'src/ui/touch.js'].includes(f)) electronish.push(f + ' (gameShell)');
 }
 check(electronish.length === 0, 'no Electron or node API in the page; the shell is reached only through the optional window.gameShell',
   electronish.join(' '));
@@ -164,7 +175,7 @@ check(electronish.length === 0, 'no Electron or node API in the page; the shell 
   fs.mkdirSync(path.join(FX, 'assets', 'sfx'), { recursive: true });
   fs.mkdirSync(path.join(FX, 'assets', 'backgrounds'), { recursive: true });
   fs.mkdirSync(path.join(FX, 'assets', 'decor'), { recursive: true });
-  fs.copyFileSync(path.join(ROOT, 'index.html'), path.join(FX, 'index.html'));
+  copyPage(FX);
   fs.cpSync(path.join(ROOT, 'src'), path.join(FX, 'src'), { recursive: true });
   fs.writeFileSync(path.join(FX, 'src/render/bgart.js'),
     "export const BG_TILE = 256;\nexport const BG_FILES = {\n  STARFIELD: {\n    far: 'assets/backgrounds/STARFIELD-far.png',\n  },\n};\n");
@@ -197,7 +208,7 @@ check(electronish.length === 0, 'no Electron or node API in the page; the shell 
 {
   const CX = path.join(TMP, 'casefix');
   fs.mkdirSync(CX, { recursive: true });
-  fs.copyFileSync(path.join(ROOT, 'index.html'), path.join(CX, 'index.html'));
+  copyPage(CX);
   fs.cpSync(path.join(ROOT, 'src'), path.join(CX, 'src'), { recursive: true });
   const m = path.join(CX, 'src', 'main.js');
   fs.writeFileSync(m, fs.readFileSync(m, 'utf8').replace("from './core/input.js'", "from './core/Input.js'"));

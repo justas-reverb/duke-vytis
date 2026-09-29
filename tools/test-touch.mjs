@@ -4,18 +4,27 @@
 //
 //   A. When there are any: `?touch` yes, `?notouch` no, else a coarse pointer and no fine one;
 //      a keycap's legend names its key and a pad's button names none; on a phone's viewport,
-//      held sideways or upright, every button is inside it, none overlaps another and each is
-//      big enough for a thumb.
-//   B. The title: the top row offers exactly the keys its hints show (S H O R P M F), from the
-//      keycaps the frame drew; S there opens the statistics; for STRIP_HOLD after a screen
-//      stops drawing a key its button stays, then goes; ESC comes back.
-//   C. A run, started with SPACE: the menus' ^ and v are put away; > held runs him right, a
+//      held sideways or upright, at every TOUCH KEYS size, every button is inside it and none
+//      overlaps another; at the first cut's size each is big enough for a thumb, and ESC and the
+//      top row keep that size at every other. The camera's hole: a key stands clear of it only
+//      when beside it -- a hole in the middle of the edge (a Pixel's) moves nothing, one in a
+//      corner moves the key there -- and where only a browser's safe-area band is known, every
+//      key on that side clears the band. The Android app's holes are read in CSS px, asked of
+//      gameShell.cutouts at the start and taken from its 'app:cutouts' event when they move.
+//   B. The title: none of the fixed keys and no top row -- it draws its own buttons, TAP TO
+//      CLIMB and OPTIONS STATS REPLAYS HELP, inside the frame, apart and a thumb tall, and a
+//      finger presses what is drawn; STATS there opens the statistics. A composite's keycaps
+//      are offered each time it is blitted (the desktop title's hints, drawn into the watch).
+//   C. A run, started with TAP TO CLIMB: < > SPACE ESC, no ^ v; > held runs him right, a
 //      thumb sliding onto < turns him, drifting up off both keeps the one it had, lifting stops
 //      him; two fingers at once (> and SPACE) each hold their own key, a held SPACE is a held
 //      jump, and two on one key hold it until both lift; nothing repeats in a run; ESC pauses and
-//      the pause's row offers S and Q; Q goes back to the title.
-//   D. The menus: a held v repeats as a held key does -- once, again after REPEAT_DELAY, then
-//      every REPEAT_RATE.
+//      the pause's row offers S and Q; Q goes back to the title, and for STRIP_HOLD after the
+//      title stops drawing them their buttons stay, then go.
+//   D. The options, opened with the title's OPTIONS: TOUCH KEYS is the first row, 80% by
+//      default, and sizes < > SPACE as it changes; there is no LOW LATENCY in the WebView (the
+//      row after GRAVITY is SCALING); a held v repeats as a held key does -- once, again after
+//      REPEAT_DELAY, then every REPEAT_RATE. A phone's frame cap is 60 until chosen otherwise.
 //   E. The Android build's background and foreground: a run pauses and the sound goes with the
 //      app; back in front it stays paused and silent until the pause is left; on the title the
 //      music stops and comes back.
@@ -24,6 +33,12 @@
 //   H. In Android's WebView -- the page booted with its user agent, LOW LATENCY on as saved --
 //      the screen's canvas is made WITHOUT the low-latency hint, which the WebView never puts on
 //      the screen (a black game, on the emulator); in any other browser the setting holds.
+//   I. The title's buttons under a finger: a finger that slides off before it lifts presses
+//      nothing, and the button lights while the finger is on it (a pixel of the drawn frame);
+//      HELP opens the help and a tap anywhere goes back; with the attract view up a tap only
+//      wakes the title, even on TAP TO CLIMB's place.
+//   J. The screen, filled: a 20:9 phone's canvas is the whole viewport, the frame in the middle
+//      and a mirror of its edges in the wings either side (render/renderer.js wingsFor).
 //
 //   node tools/test-touch.mjs              the checks (a few seconds)
 //   node tools/test-touch.mjs --mutant=N   patches a copy of src/ and must FAIL
@@ -61,11 +76,55 @@ const MUTANTS = {
   'jump-tap': [['src/ui/touch.js', "    this.send('keydown', code, false);\n    if (REPEATS.has(code))", "    this.send('keydown', code, false);\n    if (code === 'Space') { this.send('keyup', code, false); }\n    if (REPEATS.has(code))"]],
   // caught by C (one finger at a time: a second finger down forgets the first, whose key is then
   // never let go -- he runs on after both have lifted)
-  'one-finger': [['src/ui/touch.js', '      this.fingers.set(id, b ? { id: b.id, code: b.code } : { id: null, code: null });', '      this.fingers.clear();\n      this.fingers.set(id, b ? { id: b.id, code: b.code } : { id: null, code: null });']],
+  'one-finger': [['src/ui/touch.js', '      this.fingers.set(id, b ? { id: b.id, code: b.code } : { id: null, code: null, tap: t ? t.code : null });', '      this.fingers.clear();\n      this.fingers.set(id, b ? { id: b.id, code: b.code } : { id: null, code: null, tap: t ? t.code : null });']],
   // caught by C (two fingers on one key: the first to lift lets go of it)
   'no-count': [['src/ui/touch.js', '    if (n > 0) { this.held.set(code, n); return; }\n', '']],
   // caught by C (the menus' ^ and v stay in a run)
-  'arrows-in-run': [['src/ui/touch.js', '    for (const b of FIXED) if (!(run && b.menu)) list.push({ ...b, ...R[b.id] });', '    for (const b of FIXED) list.push({ ...b, ...R[b.id] });']],
+  'arrows-in-run': [['src/main.js', "  run: ['left', 'right', 'jump', 'esc'],", "  run: ['left', 'right', 'up', 'down', 'jump', 'esc'],"]],
+  // B: the title shows every fixed key, as the first cut did.
+  'title-keys': [['src/main.js', '  none: [],', "  none: ['left', 'right', 'up', 'down', 'jump', 'esc'],"]],
+  // B, C: the screen's list of keys ignored.
+  'keys-ignored': [['src/ui/touch.js', '    for (const b of FIXED) if (shown.includes(b.id)) list.push({ ...b, ...R[b.id] });', '    for (const b of FIXED) list.push({ ...b, ...R[b.id] });']],
+  // B: the title's buttons are not offered to a finger.
+  'no-targets': [['src/main.js', '  if (game.state === STATE.MENU) return quitting || attractK() > 0 ? NO_TARGETS : menuTargets();', '  if (game.state === STATE.MENU) return NO_TARGETS;']],
+  // B: a finger's page pixels taken as the frame's, forgetting the wings.
+  'toview-no-wing': [['src/render/renderer.js', '    return [bx / PX - this.wing, by / PX];', '    return [bx / PX, by / PX];']],
+  // I: a tap pressed on the finger's landing, as a key would be.
+  'tap-on-down': [['src/ui/touch.js', '      if (t) { this.pressedCode = t.code; }', "      if (t) { this.pressedCode = t.code; this.send('keydown', t.code, false); this.send('keyup', t.code, false); }"]],
+  // I: the button under a finger not lit.
+  'pressed-unlit': [['src/main.js', '  touchState.pressed = touch.pressedCode;', '  touchState.pressed = null;']],
+  // I: the help's tap-anywhere way back gone.
+  'help-no-back': [['src/main.js', '  if (game.state === STATE.HELP) return ANYWHERE;\n', '']],
+  // I: the attract view's tap pressing the button under it too.
+  'attract-presses': [['src/main.js', '  if (game.state === STATE.MENU) return quitting || attractK() > 0 ? NO_TARGETS : menuTargets();', '  if (game.state === STATE.MENU) return quitting ? NO_TARGETS : menuTargets();']],
+  // A, D: TOUCH KEYS ignored by the layout.
+  'size-ignored': [['src/ui/touch.js', '  const u = k * Math.min(size, fits);', '  const u = k * Math.min(1, fits);']],
+  // A: the keys grown past the width upright.
+  'size-unbounded': [['src/ui/touch.js', '  const u = k * Math.min(size, fits);', '  const u = k * size;']],
+  // A: a hole taken as a band down its whole side, as the safe-area insets are.
+  'hole-as-band': [['src/ui/touch.js', '    for (const h of holes) if (h.x0 < vw / 2 && h.y0 < y1 + gap && h.y1 > y0 - gap) x = Math.max(x, h.x1 + gap);', '    for (const h of holes) if (h.x0 < vw / 2) x = Math.max(x, h.x1 + gap);']],
+  // A: the holes ignored, the band alone.
+  'holes-ignored': [['src/ui/touch.js', '    if (!holes) return m + ((inset && inset.l) || 0);', '    return m + ((inset && inset.l) || 0);']],
+  // A: the app's holes taken in the screen's pixels, not CSS px.
+  'holes-unscaled': [['src/ui/touch.js', '      const d = (this.win && this.win.devicePixelRatio) || 1;', '      const d = 1;']],
+  // J: the app's word that the holes moved not heard.
+  'holes-unheard': [['src/ui/touch.js', "    if (this.win && this.win.addEventListener) this.win.addEventListener('app:cutouts', (e) => this.readHoles(e && e.detail));\n", '']],
+  // A: ESC as wide as the first cut's, over the HUD's floor counter where a band pushes it.
+  'esc-wide': [['src/ui/touch.js', 'const ESC_W = 13;', 'const ESC_W = 17;']],
+  // A: ESC and the top row sized with the play keys.
+  'esc-scales': [['src/ui/touch.js', '  r.esc = { x: leftAt(m, m + KEY_H * k), y: m, w: ESC_W * k, h: KEY_H * k };', '  r.esc = { x: leftAt(m, m + KEY_H * k), y: m, w: ESC_W * u, h: KEY_H * u };']],
+  // D: the first cut's size by default.
+  'size-default-100': [['src/game/settings.js', '  touchKeys: 0.8,', '  touchKeys: 1,']],
+  // D: the options' rows as a desktop's: TOUCH KEYS not first (not there at all) and LOW LATENCY in.
+  'desktop-rows': [['src/main.js', 'const optList = () => Settings.optionsFor({ touch: touchUI, lowLatency: LOW_LATENCY_WORKS });', 'const optList = () => Settings.optionsFor({});']],
+  // D: LOW LATENCY offered in the WebView, where it does nothing.
+  'webview-row': [['src/main.js', 'const optList = () => Settings.optionsFor({ touch: touchUI, lowLatency: LOW_LATENCY_WORKS });', 'const optList = () => Settings.optionsFor({ touch: touchUI, lowLatency: true });']],
+  // D: a phone left uncapped.
+  'phone-uncapped': [['src/main.js', 'if (touchUI) Settings.phoneDefaults(settings);\n', '']],
+  // J: no wings, the 16:9 frame with bars either side.
+  'no-wings': [['src/render/renderer.js', '    const wing = wingsFor(w, h);', '    const wing = 0;']],
+  // J: wings made, never painted.
+  'wings-unpainted': [['src/render/renderer.js', '    if (this.wing) this.drawWings(s);', '']],
   // caught by C (a held arrow repeats in a run)
   'repeat-in-run': [['src/ui/touch.js', "    if (this.mode() !== 'run') {\n      for (const [code, left] of this.rep) {", '    {\n      for (const [code, left] of this.rep) {']],
   // caught by D (a held arrow never repeats)
@@ -202,6 +261,33 @@ function down(id) {
 }
 const up = (f) => T.pointer('up', f, 0, 0);
 const tapBtn = (id) => { const f = down(id); tick(); up(f); tick(); };
+/**
+ * A point of the frame [view units] in the page's CSS pixels, worked out here from what the
+ * page is -- the canvas centred in the viewport (index.html #wrap) at its CSS size, the frame
+ * `wing` units in from its left edge -- not asked of the renderer, whose toView is under test.
+ */
+function cssOf(vx, vy) {
+  const R = V.renderer, c = R.canvas;
+  const cw = parseFloat(c.style.width), ch = parseFloat(c.style.height);
+  return [(page.win.innerWidth - cw) / 2 + (vx + R.wing) * 4 * cw / c.width, (page.win.innerHeight - ch) / 2 + vy * 4 * ch / c.height];
+}
+const target = (code) => T.targets().find((t) => t.code === code) || null;
+/** A finger down on the middle of what the screen drew for `code`; returns the finger's id. */
+function downOn(code) {
+  const t = target(code);
+  if (!t) { fail(`nothing drawn to tap for ${code} (targets: ${T.targets().map((x) => x.code).join(' ')})`); return -1; }
+  const f = ++fingerId;
+  T.pointer('down', f, ...cssOf(t.x + t.w / 2, t.y + t.h / 2));
+  return f;
+}
+/** A tap on what the screen drew for `code`, lifted where it landed. */
+function tapOn(code) {
+  const t = target(code);
+  const f = downOn(code);
+  tick();
+  if (t) T.pointer('up', f, ...cssOf(t.x + t.w / 2, t.y + t.h / 2));
+  tick();
+}
 // Every keydown the window hears, with its repeat flag and the clock, for C and D.
 const heard = [];
 let clock = 0;
@@ -231,21 +317,60 @@ const tickT = () => { tick(); clock += 1 / FPS; };
   ok(!!T && T === V.touch, 'A. main.js made no touch controls with ?touch in the address');
   // Every viewport a phone gives, a full top row (the replays' list offers the most keys):
   // inside the viewport, no two overlapping, every one at least 40 CSS px (about 6 mm) across.
+  // At every TOUCH KEYS size (60% to 130%): inside, none over another. At the first cut's size
+  // every button at least 40 CSS px (about 6 mm) across; ESC and the top row keep that size at
+  // every size -- TOUCH KEYS is the play keys' ("the left / right / space buttons should be
+  // smaller and adjustable").
   const strip = ['ENTER', 'S', 'R', 'N', 'P', 'E', 'I', 'DEL'];
   const problems = [];
-  for (const [vw, vh] of [[915, 412], [800, 360], [640, 360], [412, 915], [1280, 800]]) {
-    const L = Object.entries(Touch.touchLayout(vw, vh, strip));
-    for (const [id, r] of L) {
-      if (r.x < 0 || r.y < 0 || r.x + r.w > vw || r.y + r.h > vh) problems.push(`${vw}x${vh} ${id} outside`);
-      if (Math.min(r.w, r.h) < 40) problems.push(`${vw}x${vh} ${id} ${Math.min(r.w, r.h).toFixed(0)} px`);
-    }
-    for (let i = 0; i < L.length; i++) for (let j = i + 1; j < L.length; j++) {
-      const [a, p] = L[i], [b, q] = L[j];
-      if (p.x < q.x + q.w && q.x < p.x + p.w && p.y < q.y + q.h && q.y < p.y + p.h) problems.push(`${vw}x${vh} ${a} over ${b}`);
+  for (const size of [0.6, 0.8, 1, 1.3]) {
+    for (const [vw, vh] of [[915, 412], [800, 360], [640, 360], [412, 915], [1280, 800]]) {
+      const L = Object.entries(Touch.touchLayout(vw, vh, strip, size));
+      for (const [id, r] of L) {
+        if (r.x < 0 || r.y < 0 || r.x + r.w > vw || r.y + r.h > vh) problems.push(`${size} ${vw}x${vh} ${id} outside`);
+        const fixed = id === 'esc' || id.startsWith('key:');
+        if ((size === 1 || fixed) && Math.min(r.w, r.h) < 40) problems.push(`${size} ${vw}x${vh} ${id} ${Math.min(r.w, r.h).toFixed(0)} px`);
+      }
+      for (let i = 0; i < L.length; i++) for (let j = i + 1; j < L.length; j++) {
+        const [a, p] = L[i], [b, q] = L[j];
+        if (p.x < q.x + q.w && q.x < p.x + p.w && p.y < q.y + q.h && q.y < p.y + p.h) problems.push(`${size} ${vw}x${vh} ${a} over ${b}`);
+      }
     }
   }
   ok(!problems.length, `A. the layout: ${problems.slice(0, 6).join('; ')}`);
-  note(`A. touch where asked or on a phone only; keycaps name their keys, a pad's none; five phone viewports laid out clear`);
+  // The size is the play keys' own: SPACE is 34 u across at 100% [u: a hundredth of the short
+  // side], so on a 412 px short side 140.08 px at 100% and 112.06 at 80%; ESC 13 u at any size.
+  const at = (s) => Touch.touchLayout(915, 412, [], s);
+  const sized = Math.abs(at(1).jump.w - 140.08) < 0.01 && Math.abs(at(0.8).jump.w - 112.064) < 0.01
+    && Math.abs(at(0.8).esc.w - 53.56) < 0.01 && Math.abs(at(1.3).esc.w - 53.56) < 0.01;
+  ok(sized, `A. SPACE ${at(1).jump.w.toFixed(2)} px at 100% and ${at(0.8).jump.w.toFixed(2)} at 80% (want 140.08, 112.06); ESC ${at(0.8).esc.w.toFixed(2)} and ${at(1.3).esc.w.toFixed(2)} (want 53.56 at both)`);
+  // The camera's hole, 915 x 412 at 80% [CSS px; m, the margin, is 12.36; a key clears a hole by
+  // 8.24, two u]: in the middle of the left edge (a Pixel's, 0-38 across and 190-222 down) no key
+  // moves -- ESC and < at 12.36, ^ at 55.21, where they stand with no hole; in the top left
+  // corner (0-60) ESC alone moves, to 68.24; in the bottom right (870-915, 360-412) SPACE alone,
+  // its right edge to 861.76. With only a browser's band (49 px down the left) every key on that
+  // side moves 49 in: ESC and < at 61.36. And in every case no key over a hole.
+  const L8 = (inset, holes) => Touch.touchLayout(915, 412, ['S', 'Q'], 0.8, inset, holes);
+  const near = (a, b) => Math.abs(a - b) < 0.01;
+  const mid = [{ x0: 0, y0: 190, x1: 38, y1: 222 }], tl = [{ x0: 0, y0: 0, x1: 60, y1: 60 }], br = [{ x0: 870, y0: 360, x1: 915, y1: 412 }];
+  const a0 = L8({ l: 49, r: 49 }, mid), a1 = L8(null, tl), a2 = L8(null, br), a3 = L8({ l: 49, r: 0 }, null);
+  const over = (R, holes) => Object.entries(R).filter(([, b]) => holes.some((h) => b.x < h.x1 && h.x0 < b.x + b.w && b.y < h.y1 && h.y0 < b.y + b.h)).map(([id]) => id);
+  const holeWrong = [];
+  if (!(near(a0.esc.x, 12.36) && near(a0.left.x, 12.36) && near(a0.up.x, 55.208))) holeWrong.push(`a middle hole moved ESC to ${a0.esc.x.toFixed(2)}, < to ${a0.left.x.toFixed(2)}, ^ to ${a0.up.x.toFixed(2)}`);
+  if (!(near(a1.esc.x, 68.24) && near(a1.left.x, 12.36))) holeWrong.push(`a corner hole put ESC at ${a1.esc.x.toFixed(2)} (want 68.24) and < at ${a1.left.x.toFixed(2)} (want 12.36)`);
+  if (!(near(a2.jump.x + a2.jump.w, 861.76) && near(a2.esc.x, 12.36))) holeWrong.push(`a bottom-right hole put SPACE's right edge at ${(a2.jump.x + a2.jump.w).toFixed(2)} (want 861.76)`);
+  if (!(near(a3.esc.x, 61.36) && near(a3.left.x, 61.36))) holeWrong.push(`a band put ESC at ${a3.esc.x.toFixed(2)} and < at ${a3.left.x.toFixed(2)} (want 61.36)`);
+  for (const [R, holes, name] of [[a0, mid, 'middle'], [a1, tl, 'corner'], [a2, br, 'bottom right']]) {
+    const o = over(R, holes);
+    if (o.length) holeWrong.push(`${o.join(' ')} over the ${name} hole`);
+  }
+  // The app's holes in CSS px: [[0, 500, 100, 580]] in the screen's pixels at a ratio of 2.625.
+  const fake = new Touch.TouchControls({ target: { addEventListener() {}, dispatchEvent() {} },
+    win: { innerWidth: 915, innerHeight: 412, devicePixelRatio: 2.625, gameShell: { cutouts: () => '[[0,500,100,580]]' } }, doc: {} });
+  const fh = fake.holes && fake.holes[0];
+  if (!(fh && near(fh.x1, 100 / 2.625) && near(fh.y0, 500 / 2.625) && near(fh.y1, 580 / 2.625))) holeWrong.push(`gameShell.cutouts read as ${JSON.stringify(fake.holes)} (want x1 38.10, y 190.48-220.95)`);
+  ok(!holeWrong.length, `A. the camera's hole: ${holeWrong.join('; ')}`);
+  note(`A. touch where asked or on a phone only; keycaps name their keys, a pad's none; five phone viewports laid out clear at 60-130%, the play keys sized by it; a key clears the camera's hole only beside it, a band where a band is all that is known`);
 }
 
 // =============================================================================================
@@ -254,26 +379,50 @@ const tickT = () => { tick(); clock += 1 / FPS; };
 {
   ok(game.state === STATE.MENU, `B. the page did not boot to the title (${game.state})`);
   ticks(1);
-  for (let i = 0; i < 3; i++) drawnTick();
-  const title = row();
-  const want = ['S', 'H', 'O', 'R', 'P', 'M', 'F'];
-  ok(title.join(' ') === want.join(' '), `B. the title's row is [${title.join(' ')}], its hints [${want.join(' ')}]`);
-  ok(['left', 'right', 'up', 'down', 'jump', 'esc'].every((id) => ids().includes(id)), `B. the title lacks a fixed button: ${ids().join(' ')}`);
-  tapBtn('key:S');
-  ok(game.state === STATE.STATS, `B. S on the title's row did not open the statistics (${game.state})`);
-  // The statistics draw their own hints; the title's go -- but not at once.
-  drawnTick();
-  const soon = row();
-  let gone = null;
-  for (let i = 0; i < 30; i++) {
-    drawnTick();
-    if (!row().includes('H')) { gone = (i + 2) / FPS; break; }
+  settle();
+  // Nothing of the fixed keys and no top row: the user, 2026-09-29, "up and down arrows appear
+  // on the main menu when they do nothing there".
+  ok(ids().length === 0, `B. the title draws its own buttons and needs no fixed keys, but shows [${ids().join(' ')}]`);
+  // Its buttons, as a finger finds them: TAP TO CLIMB, then the row, left to right.
+  const tg = T.targets();
+  const codes = tg.map((t) => t.code).join(' ');
+  ok(codes === 'Space KeyO KeyS KeyR KeyH', `B. the title's buttons press [${codes}] (want TAP TO CLIMB, OPTIONS, STATS, REPLAYS, HELP: Space KeyO KeyS KeyR KeyH)`);
+  // Inside the frame, apart, and a thumb tall on this phone: 44 CSS px at least (Apple's figure,
+  // under Android's 48 dp) -- the frame is 412 px for 270 view units here.
+  const pxPerUnit = parseFloat(V.renderer.canvas.style.height) / 270;
+  const bad = [];
+  for (let i = 0; i < tg.length; i++) {
+    const t = tg[i];
+    if (t.x < 0 || t.y < 0 || t.x + t.w > 480 || t.y + t.h > 270) bad.push(`${t.code} outside the frame`);
+    if (t.h * pxPerUnit < 44) bad.push(`${t.code} ${(t.h * pxPerUnit).toFixed(0)} px tall`);
+    for (let j = i + 1; j < tg.length; j++) {
+      const q = tg[j];
+      if (t.x < q.x + q.w && q.x < t.x + t.w && t.y < q.y + q.h && q.y < t.y + t.h) bad.push(`${t.code} over ${q.code}`);
+    }
   }
-  ok(soon.includes('H') && gone !== null && gone >= STRIP_HOLD - 0.02 && gone <= STRIP_HOLD + 0.1,
-    `B. the title's H left the row ${gone === null ? 'never' : `after ${gone.toFixed(3)} s`} (it must stay ${STRIP_HOLD} s after its hint goes, then go); a frame on: [${soon.join(' ')}]`);
+  ok(!bad.length, `B. the title's buttons: ${bad.join('; ')}`);
+  tapOn('KeyS');
+  ok(game.state === STATE.STATS, `B. STATS on the title did not open the statistics (${game.state})`);
   tapBtn('esc');
   ok(game.state === STATE.MENU, `B. ESC did not leave the statistics (${game.state})`);
-  note(`B. the title offers [${title.join(' ')}]; S opens the statistics; a key stays ${STRIP_HOLD} s after its hint goes (${gone && gone.toFixed(2)} s), then goes; ESC is back`);
+  settle();
+  // A composite's keycaps reach the row each time it is blitted, as well as the keys drawn
+  // straight: no phone screen letters its hints into one today, so the desktop's title -- whose
+  // key hints are one (screens.js drawLower) -- is drawn here, twice, into the watched set: once
+  // as the composite is built, once from the cache.
+  const S = await import(u('src/ui/screens.js'));
+  const M = await import(u('src/render/menuskin.js'));
+  const caps = [];
+  for (let i = 0; i < 2; i++) {
+    const seen = new Set();
+    M.watchCaps(seen);
+    S.drawMenu(V.renderer.ctx, V.stats(), 1, 1 / FPS, true, false, null);
+    M.watchCaps(null);
+    caps.push([...seen].filter((s) => Touch.capCode(s)).sort().join(' '));
+  }
+  ok(caps[0] === 'F H M O P R S SPACE' && caps[1] === caps[0],
+    `B. the desktop title's hints, from its composite: [${caps[0]}] built, [${caps[1]}] from the cache (want F H M O P R S SPACE both times: the hints' keys, SPACE among them)`);
+  note(`B. the title: no fixed keys, its own five buttons (${codes}); STATS opens the statistics, ESC is back; a composite's keycaps are offered, built or cached`);
 }
 
 // =============================================================================================
@@ -281,8 +430,8 @@ const tickT = () => { tick(); clock += 1 / FPS; };
 // =============================================================================================
 {
   const inp = V.input;
-  tapBtn('jump');
-  ok(game.state === STATE.PLAYING, `C. SPACE on the title did not start a run (${game.state})`);
+  tapOn('Space');
+  ok(game.state === STATE.PLAYING, `C. TAP TO CLIMB on the title did not start a run (${game.state})`);
   ticks(0.8);
   ok(!ids().includes('up') && !ids().includes('down') && ['left', 'right', 'jump', 'esc'].every((id) => ids().includes(id)),
     `C. a run's buttons are [${ids().join(' ')}]: the menus' ^ v must go, < > SPACE ESC stay`);
@@ -355,19 +504,49 @@ const tickT = () => { tick(); clock += 1 / FPS; };
   const pause = row();
   ok(pause.join(' ') === 'S Q', `C. the pause's row is [${pause.join(' ')}]: its hints are ESC RESUME, S STATS, Q QUIT TO MENU`);
   tapBtn('key:Q');
-  ticks(0.2);
   ok(game.state === STATE.MENU, `C. Q on the pause did not go back to the title (${game.state})`);
-  note(`C. a run: < > SPACE ESC only; the arrows run, slide and keep; two fingers each their own; a held jump; no repeat; the pause offers [${pause.join(' ')}], Q back`);
+  // The title draws no keycaps: the pause's go from the row -- but not at once.
+  drawnTick();
+  const soon = row();
+  let gone = null;
+  for (let i = 0; i < 30; i++) {
+    drawnTick();
+    if (!row().includes('Q')) { gone = (i + 2) / FPS; break; }
+  }
+  ok(soon.includes('Q') && gone !== null && gone >= STRIP_HOLD - 0.02 && gone <= STRIP_HOLD + 0.1,
+    `C. the pause's Q left the row ${gone === null ? 'never' : `after ${gone.toFixed(3)} s`} (it must stay ${STRIP_HOLD} s after its hint goes, then go); a frame on: [${soon.join(' ')}]`);
+  ticks(0.2);
+  note(`C. a run: < > SPACE ESC only; the arrows run, slide and keep; two fingers each their own; a held jump; no repeat; the pause offers [${pause.join(' ')}], Q back, and its keys stay ${STRIP_HOLD} s (${gone && gone.toFixed(2)} s), then go`);
 }
 
 // =============================================================================================
 // D. The menus: a held v repeats as a held key does.
 // =============================================================================================
 {
-  for (let i = 0; i < 3; i++) drawnTick();
-  tapBtn('key:O');
-  ok(game.state === STATE.OPTIONS, `D. O on the title's row did not open the options (${game.state})`);
+  settle();
+  // A phone's frame cap: 60, the first time it is played by touch (Settings.phoneDefaults).
+  ok(V.settings().fpsCap === 60, `D. a phone's frame cap is ${V.settings().fpsCap || 'UNCAPPED'} (want 60 until chosen otherwise)`);
+  tapOn('KeyO');
+  ok(game.state === STATE.OPTIONS, `D. OPTIONS on the title did not open the options (${game.state})`);
   ok(ids().includes('up') && ids().includes('down'), `D. the options have no ^ v: ${ids().join(' ')}`);
+  // TOUCH KEYS: the first row, 80% by default, and > and < on it size the play keys. SPACE is
+  // 34 u across [u: 4.12 px here] at 100%: 112.06 px at 80%, 126.07 at 90%.
+  const w80 = btn('jump').w;
+  tapBtn('right');
+  const w90 = btn('jump').w, s90 = V.settings().touchKeys;
+  tapBtn('left');
+  const back = V.settings().touchKeys, w80b = btn('jump').w;
+  ok(Math.abs(w80 - 112.064) < 0.01 && s90 === 0.9 && Math.abs(w90 - 126.072) < 0.01 && back === 0.8 && Math.abs(w80b - 112.064) < 0.01,
+    `D. TOUCH KEYS, the first row: SPACE ${w80.toFixed(2)} px at the default, ${w90.toFixed(2)} after > (TOUCH KEYS ${s90}), ${w80b.toFixed(2)} after < (${back}); want 112.06 at 80%, 126.07 at 90%`);
+  // No LOW LATENCY in the WebView: five rows down from TOUCH KEYS -- JUMP SPEED, PLATFORMS,
+  // DIFFICULTY, GRAVITY -- is SCALING, and > there changes the scaling, not the hint.
+  const was = { scale: V.settings().scaleMode, low: V.settings().lowLatency };
+  for (let i = 0; i < 5; i++) tapBtn('down');
+  tapBtn('right');
+  const now = { scale: V.settings().scaleMode, low: V.settings().lowLatency };
+  tapBtn('left');
+  ok(now.scale !== was.scale && now.low === was.low && V.settings().scaleMode === was.scale,
+    `D. the WebView's options: > five rows under TOUCH KEYS changed SCALING ${was.scale} -> ${now.scale} and LOW LATENCY ${was.low} -> ${now.low} (want SCALING, LOW LATENCY not offered)`);
   heard.length = 0;
   clock = 0;
   const f = down('down');
@@ -382,7 +561,7 @@ const tickT = () => { tick(); clock += 1 / FPS; };
     `D. v held a second: ${downs.length} keydowns, the first repeat at ${first === null ? 'none' : first.toFixed(3) + ' s'} (want about ${want}, the first at ${REPEAT_DELAY} s)`);
   tapBtn('esc');
   ok(game.state === STATE.MENU, `D. ESC did not leave the options (${game.state})`);
-  note(`D. v held a second in the options: ${downs.length} keydowns, repeating from ${first && first.toFixed(2)} s every ${REPEAT_RATE} s`);
+  note(`D. the options: TOUCH KEYS first, 80% and sizing SPACE; no LOW LATENCY in the WebView; frame cap 60; v held a second: ${downs.length} keydowns, repeating from ${first && first.toFixed(2)} s every ${REPEAT_RATE} s`);
 }
 
 // =============================================================================================
@@ -399,7 +578,8 @@ const tickT = () => { tick(); clock += 1 / FPS; };
   send('app:foreground');
   const titleOn = A.paused === false;
   // In a run: paused, silent, and still so in front again until the pause is left.
-  tapBtn('jump');
+  settle();
+  tapOn('Space');
   ticks(0.5);
   const playing = game.state === STATE.PLAYING;
   send('app:background');
@@ -481,6 +661,112 @@ const tickT = () => { tick(); clock += 1 / FPS; };
   V.renderer.setLowLatency(true);
   ok(V.renderer.lowLatency === false, 'H. turning LOW LATENCY on in the WebView put the hint on');
   note('H. in Android\'s WebView the screen is drawn without the low-latency hint, whatever the setting says');
+}
+
+// =============================================================================================
+// I. The title's buttons under a finger: lift to press, slide off to cancel, lit while held; the
+//    help's way back; the attract view's tap.
+// =============================================================================================
+{
+  // Back to the title from the scoreboard (F left it there).
+  if (game.state === STATE.DEAD) tapBtn('esc');
+  ticks(0.3);
+  settle();
+  ok(game.state === STATE.MENU, `I. no title to tap on (${game.state})`);
+  // A finger down on OPTIONS, slid up off it, lifted: nothing. Lit while it was on.
+  const t = target('KeyO');
+  const f = downOn('KeyO');
+  const lit = T.pressedCode === 'KeyO';
+  tick();
+  const [ox, oy] = cssOf(t.x + t.w / 2, t.y - 30);
+  T.pointer('move', f, ox, oy);
+  const unlit = T.pressedCode === null;
+  T.pointer('up', f, ox, oy);
+  ticks(0.2);
+  ok(lit && unlit && game.state === STATE.MENU,
+    `I. a finger on OPTIONS slid off before it lifted: lit on it ${lit}, unlit off it ${unlit}, and the screen is ${game.state} (want the title: a slide off is a change of mind)`);
+  // Lit in the drawn frame: STATS' middle under a finger against without one. The pixel is the
+  // plate's field, left of the word: dark panel without, crimson enamel with.
+  const s = target('KeyS');
+  const C = V.renderer.canvas;
+  const px = () => {
+    V.renderFrame(1, 1 / FPS);
+    const X = Math.round((s.x + 4 + 3 + V.renderer.wing) * 4), Y = Math.round((s.y + s.h / 2) * 4);
+    const i = (Y * C.width + X) * 4;
+    return [C.data[i], C.data[i + 1], C.data[i + 2]];
+  };
+  const off = px();
+  const fs = downOn('KeyS');
+  const on = px();
+  T.pointer('cancel', fs, 0, 0);
+  const redder = on[0] - on[2] > off[0] - off[2] + 20;
+  ok(redder && game.state === STATE.MENU,
+    `I. STATS under a finger drew rgb(${on.join(',')}), without rgb(${off.join(',')}) (want it lit: crimson), and a cancelled finger left the title ${game.state}`);
+  // HELP, and a tap anywhere back -- the wings too.
+  tapOn('KeyH');
+  const inHelp = game.state === STATE.HELP;
+  const fh = ++fingerId;
+  T.pointer('down', fh, 5, 5);
+  tick();
+  T.pointer('up', fh, 5, 5);
+  ticks(0.2);
+  ok(inHelp && game.state === STATE.MENU, `I. HELP opened the help ${inHelp}; a tap in the corner went back to ${game.state} (want the title: the help says TAP TO GO BACK)`);
+  // The attract view: idle past ATTRACT_IDLE; a tap on TAP TO CLIMB's place wakes the title and
+  // does not start a run.
+  const climb = menuT();
+  ticks(12);
+  const k0 = V.attractK ? V.attractK() : null;
+  const fa = ++fingerId;
+  const [cx, cy] = cssOf(climb.x + climb.w / 2, climb.y + climb.h / 2);
+  T.pointer('down', fa, cx, cy);
+  page.win.dispatchEvent(new Event('pointerdown'));
+  tick();
+  T.pointer('up', fa, cx, cy);
+  ticks(0.3);
+  ok(game.state === STATE.MENU, `I. a tap on the attract view (at ${k0 === null ? '?' : k0.toFixed(2)} of it) started ${game.state} (want the title back, and no run)`);
+  note('I. the title\'s buttons: lit under a finger, pressed on the lift, a slide off presses nothing; the help goes back on any tap; the attract view\'s tap only wakes the title');
+}
+function menuT() { return target('Space') || { x: 122, y: 146, w: 244, h: 42 }; }
+function near2(a, b) { return typeof a === 'number' && Math.abs(a - b) < 0.01; }
+
+// =============================================================================================
+// J. The screen, filled: a 20:9 phone's canvas is the viewport, the frame mirrored into its wings.
+// =============================================================================================
+{
+  const R = V.renderer, C = R.canvas;
+  const Rm = await import(u('src/render/renderer.js'));
+  // The side margins, worked out [view units a side]: (w/h x 270 - 480) / 2, rounded up to cover
+  // the edge. 915 x 412: 59.6 -> 60; 2400 x 1080 (the emulator's Pixel 6): 60; 16:9: 0; 4:3: 0;
+  // 3440 x 1440 (an ultrawide): 82.5 -> 83; 32:9 at most WING_MAX, 200.
+  const want = [[915, 412, 60], [2400, 1080, 60], [1920, 1080, 0], [1024, 768, 0], [3440, 1440, 83], [5120, 1440, 200]];
+  const wrong = want.filter(([w, h, n]) => Rm.wingsFor(w, h) !== n).map(([w, h, n]) => `${w}x${h}: ${Rm.wingsFor(w, h)} (want ${n})`);
+  ok(!wrong.length, `J. wingsFor: ${wrong.join('; ')}`);
+  const cw = parseFloat(C.style.width), ch = parseFloat(C.style.height);
+  ok(R.wing === 60 && C.width === 1920 + 2 * 60 * 4 && Math.abs(cw - page.win.innerWidth) <= 1 && Math.abs(ch - page.win.innerHeight) <= 1,
+    `J. on a 915 x 412 phone the canvas is ${C.width} x ${C.height} shown at ${cw} x ${ch} with ${R.wing} units of wings (want 2400 wide, the whole viewport, 60 a side)`);
+  // In a run: each wing's first strip is the frame's edge mirrored, pixel for pixel, on a row
+  // through the middle of the screen.
+  tapOn('Space');
+  ticks(0.5);
+  V.renderFrame(1, 1 / FPS);
+  const W = R.wing * 4, Y = 540, d = C.data;
+  const at = (x) => { const i = (Y * C.width + x) * 4; return (d[i] << 16) | (d[i + 1] << 8) | d[i + 2]; };
+  let mism = 0, lit = 0;
+  for (let i = 0; i < 48; i++) {
+    if (at(W - 1 - i) !== at(W + i)) mism++;
+    if (at(C.width - W + i) !== at(C.width - W - 1 - i)) mism++;
+    if (at(W - 1 - i) !== 0) lit++;
+  }
+  ok(mism === 0 && lit > 24, `J. the wings on row ${Y}: ${mism} of 96 pixels are not the frame's edge mirrored, ${lit} of 48 on the left not black (want 0, and a picture)`);
+  // The Android app turned over: its 'app:cutouts' says where the hole is now [the screen's
+  // pixels; this page's ratio is 1]. In the top left corner ESC stands clear of it; in the middle
+  // of the edge, and with none, back at the margin.
+  const escAt = () => btn('esc') && btn('esc').x;
+  const cut = (list) => { page.win.dispatchEvent(new CustomEvent('app:cutouts', { detail: list })); tick(); return escAt(); };
+  const [e1, e2, e3] = [cut([[0, 0, 60, 60]]), cut([[0, 190, 38, 222]]), cut([])];
+  ok(near2(e1, 68.24) && near2(e2, 12.36) && near2(e3, 12.36),
+    `J. the app's holes as the phone turns: ESC at ${e1 && e1.toFixed(2)} by a corner hole, ${e2 && e2.toFixed(2)} by a middle one, ${e3 && e3.toFixed(2)} with none (want 68.24, 12.36, 12.36)`);
+  note(`J. a 20:9 phone's screen is filled: ${C.width} x ${C.height} across ${cw} x ${ch} CSS px, the frame's edges mirrored ${R.wing} units out either side`);
 }
 
 cleanup();

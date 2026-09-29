@@ -2,6 +2,7 @@ package lt.dukevytis.tower;
 
 import android.app.Activity;
 import android.content.pm.ApplicationInfo;
+import android.graphics.Rect;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -53,6 +54,8 @@ public class MainActivity extends Activity {
 
   private WebView web;
   private FrameLayout root;
+  /** The camera's cut-outs, [[l,t,r,b],...] in the window's pixels: the page's gameShell.cutouts(). */
+  private volatile String cutouts = "[]";
 
   @Override
   protected void onCreate(Bundle state) {
@@ -61,22 +64,49 @@ public class MainActivity extends Activity {
     if ((getApplicationInfo().flags & ApplicationInfo.FLAG_DEBUGGABLE) != 0) {
       WebView.setWebContentsDebuggingEnabled(true);
     }
+    // The whole screen, the camera's cut-out included. The page used to be laid out beside the
+    // cut-out, which left a black band down the camera's side of a phone held sideways (the
+    // user's Pixel 10, 2026-09-29: "the game doesn't actually seem to go fully full screen").
+    // Now the game draws its side wings under it (render/renderer.js wingsFor), and the
+    // on-screen keys keep clear of it by the page's safe-area insets (ui/touch.js; index.html
+    // asks for them with viewport-fit=cover).
+    if (Build.VERSION.SDK_INT >= 28) {
+      WindowManager.LayoutParams lp = getWindow().getAttributes();
+      lp.layoutInDisplayCutoutMode = Build.VERSION.SDK_INT >= 30
+          ? WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
+          : WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES;
+      getWindow().setAttributes(lp);
+    }
     root = new FrameLayout(this);
     root.setBackgroundColor(0xff05030a);
-    // The camera cut-out: the page is laid out beside it, never under it.
+    // Where the cut-outs are, for the page: nothing is padded, and the on-screen keys stand clear
+    // of a hole only where one is beside them (ui/touch.js). The safe insets say only how deep a
+    // band down the whole side is -- a punch hole's band is the status bar's height -- so the
+    // holes themselves go to the page: asked (gameShell.cutouts) and sent when they move, as the
+    // phone turns over ('app:cutouts'). tools/android-smoke.mjs prints the log line.
     root.setOnApplyWindowInsetsListener(new View.OnApplyWindowInsetsListener() {
       @Override
       public WindowInsets onApplyWindowInsets(View v, WindowInsets insets) {
         int l = 0, t = 0, r = 0, b = 0;
+        StringBuilder holes = new StringBuilder("[");
         if (Build.VERSION.SDK_INT >= 28) {
           DisplayCutout c = insets.getDisplayCutout();
           if (c != null) {
             l = c.getSafeInsetLeft(); t = c.getSafeInsetTop();
             r = c.getSafeInsetRight(); b = c.getSafeInsetBottom();
+            for (Rect h : c.getBoundingRects()) {
+              if (holes.length() > 1) holes.append(',');
+              holes.append('[').append(h.left).append(',').append(h.top).append(',')
+                  .append(h.right).append(',').append(h.bottom).append(']');
+            }
           }
         }
-        v.setPadding(l, t, r, b);
-        Log.i(TAG, "cut-out padding " + l + "," + t + "," + r + "," + b);
+        String now = holes.append(']').toString();
+        Log.i(TAG, "cut-out insets " + l + "," + t + "," + r + "," + b + " holes " + now);
+        if (!now.equals(cutouts)) {
+          cutouts = now;
+          js("window.dispatchEvent(new CustomEvent('app:cutouts',{detail:" + now + "}))");
+        }
         return insets;
       }
     });
@@ -181,9 +211,11 @@ public class MainActivity extends Activity {
     }
   }
 
-  /** What the page calls as window.gameShell; the desktop build's preload offers the same three. */
+  /** What the page calls as window.gameShell; the desktop build's preload offers the first three. */
   class Shell {
     @JavascriptInterface public boolean isFullscreen() { return true; }
+    /** The camera's cut-outs, [[l,t,r,b],...] in the window's pixels (the page divides by its ratio). */
+    @JavascriptInterface public String cutouts() { return cutouts; }
     @JavascriptInterface public void toggleFullscreen() { /* always fullscreen */ }
     @JavascriptInterface public void quit() {
       runOnUiThread(new Runnable() {
@@ -240,6 +272,7 @@ public class MainActivity extends Activity {
     if (p.endsWith(".js") || p.endsWith(".mjs")) return "text/javascript";
     if (p.endsWith(".css")) return "text/css";
     if (p.endsWith(".json")) return "application/json";
+    if (p.endsWith(".webmanifest")) return "application/manifest+json";
     if (p.endsWith(".png")) return "image/png";
     if (p.endsWith(".webp")) return "image/webp";
     if (p.endsWith(".svg")) return "image/svg+xml";

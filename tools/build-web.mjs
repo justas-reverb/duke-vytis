@@ -97,10 +97,17 @@ export async function runtimeAssets(root = ROOT) {
   return [...out].sort();
 }
 
+/**
+ * What index.html itself links, beyond the game's modules: the app manifest and the icon a
+ * phone's home screen shows when the page is saved there (index.html's head). Listed here, not
+ * read off the page, so the build does not share a blind spot with the walk that checks it.
+ */
+export const PAGE_FILES = ['manifest.webmanifest', 'assets/icon.png'];
+
 /** Build the package into `out`, emptied first. Returns the list of files written. */
 export async function buildWeb(out, root = ROOT) {
   fs.rmSync(out, { recursive: true, force: true });
-  const files = ['index.html', ...listFiles(path.join(root, 'src')).map((f) => 'src/' + f)];
+  const files = ['index.html', ...PAGE_FILES, ...listFiles(path.join(root, 'src')).map((f) => 'src/' + f)];
   const assets = await runtimeAssets(root);
   const missing = assets.filter((a) => !fs.existsSync(path.join(root, a)));
   if (missing.length) throw new Error('the game names assets that do not exist: ' + missing.join(', '));

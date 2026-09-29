@@ -491,6 +491,19 @@ Two things worth knowing:
   meant the fix reached new players and nobody else. The migration runs once and only
   rewrites that one field, so a deliberate INTEGER survives.
 
+**A screen wider than 16:9 gets wings, not bars** (`wingsFor`, `setWings`, `drawWings` in
+`renderer.js`; 2026-09-29, the user's Pixel 10: "the game doesnt actually seem to go fully full
+screen"). A phone held sideways is about 20:9, and the 16:9 frame stood in the middle of it with
+a black band either side. The canvas is now as wide as the screen's shape asks: `wingsFor(w, h)`
+view units a side -- (w/h x 270 - 480) / 2, rounded up so the canvas reaches both edges, none at
+16:9 or narrower, at most `WING_MAX` (200) -- 60 on a 20:9 phone, 83 on a 3440x1440 ultrawide.
+The frame is drawn into the back buffer as ever, untouched, and `present()` puts it in the
+middle of the wider canvas; `drawWings` then fills each wing with the frame's own outer
+`WING_STRIP` (12) units, mirrored outward and repeated, so the walls read as thicker walls, and
+the vignette's side bands (`edgeTint`) move out to the canvas's edges. Nothing in the frame
+changes and the simulation never sees the wings. `tools/test-touch.mjs` J holds the widths and
+the mirror, pixel for pixel.
+
 `test-scaling.mjs` checks twelve sizes (ten real displays, the 640x360 minimum window and
 an 800x600 one), that nothing is ever drawn larger than its window, that the aspect ratio
 never drifts, and that a zero or NaN viewport -- which a window manager will hand you
@@ -727,14 +740,21 @@ decides:
 
 | | |
 |---|---|
-| in a run, focused | uncapped, or the `FRAME CAP` setting |
+| in a run, focused | uncapped, or the `FRAME CAP` setting (60 on a phone until chosen otherwise: `Settings.phoneDefaults`) |
 | on a menu, focused | 60 -- skips **63%** of draws on a 160 Hz panel |
 | window not focused, on a menu | 5 -- skips **97%** |
 | window not focused, mid-run or mid-fall | 10 -- unless the pad is playing (below) |
 | window not focused, a run or fall played on the pad | as in a run: uncapped, or `FRAME CAP` |
 | tab hidden | 4 |
 
-The cap carries its remainder from frame to frame rather than resetting; see "A render
+**A cap that is a whole number of display frames is paced by whole display frames**
+(`Loop._due`, 2026-09-29): 60 on a phone's 120 Hz panel draws every second frame exactly, so
+every drawn frame is on screen as long as the last. The averaging below drew it one, two or
+three frames apart as the callbacks jittered -- a steady judder, the user's Pixel 10's
+"steadily choppy". The display's interval (`Loop.vsync`) is the median of the last 15 frames'
+intervals, so a late frame, a stall or a start moves it not at all, and a panel that drops to
+60 Hz to save power is followed within eight frames; `tools/test-loop.mjs` holds both. Any
+other cap carries its remainder from frame to frame rather than resetting; see "A render
 cap that reset to zero" below for why that matters. A window without the keyboard still
 reads the pad -- a click on another monitor, on itch.io's page round the frame -- so a run
 resumed there with Start is being played, and at 10 fps it was a slide show; the pad's
@@ -846,19 +866,44 @@ drives a fake `getGamepads` and boots the real `main.js` in node (`tools/fakepag
 made when the address has `?touch` (the Android app loads it so) or the device's only pointer
 is coarse, never on a desktop. Each button is a KEY -- a keydown and keyup dispatched on the
 window, as a keyboard's -- so Input, `onKey` and a replay's recorder cannot tell a thumb from a
-key, and nothing above knows touch exists. Always: < and > (held; a thumb slides from one to
-the other, and drifting off both keeps the one it had), SPACE (held as long as the finger is
-down, so HOLD TO CHAIN works) and ESC; outside a run ^ and v, which repeat as a held key does
-(the pad's `REPEAT_DELAY` and `REPEAT_RATE`). Along the top, the keys the last frame drew as
+key, and nothing above knows touch exists. Each screen has the fixed keys its own keys are for
+(`touchKeys` in `main.js`): a run and the guide < > SPACE ESC -- < and > held, a thumb sliding
+from one to the other and keeping the one it had when it drifts off both, SPACE held as long as
+the finger is down, so HOLD TO CHAIN works; the options and a replay add ^ and v, which repeat
+outside a run as a held key does (the pad's `REPEAT_DELAY` and `REPEAT_RATE`); the pause, the
+fall and the scoreboard SPACE and ESC; the title none (the user: "up and down arrows appear on
+the main menu when they do nothing there"). Along the top, the keys the last frame drew as
 KEYCAPS: `menuskin.js` `watchCaps` collects every legend `mCap` draws while `main.js`'s
 `renderFrame` watches (a composite's caps each time it is blitted, none while one is built or
-painted ahead), so the title offers S H O R P M F, the pause S Q, the scoreboard S R G -- what
-a screen offers is what its hints say, with no list of every screen's keys to go stale. A key
-stays `STRIP_HOLD` (0.25 s) after its hint goes, so a fading hint does not blink its button.
+painted ahead), so the pause offers S Q and the scoreboard S R G -- what a screen offers is what
+its hints say, with no list of every screen's keys to go stale. A key stays `STRIP_HOLD`
+(0.25 s) after its hint goes, so a fading hint does not blink its button.
+
+**TOUCH KEYS** (OPTIONS, only on a phone and first there; 60-130%, 80% by default: the user's
+"the left / right / space buttons should be smaller and adjustable") sizes the play keys, as far
+as the width has room for them side by side; ESC and the top row keep the first cut's size.
+The phone's options drop LOW LATENCY where the WebView cannot use it (`Settings.optionsFor`).
+
+**The title draws its own buttons on a phone** (`screens.js`, `drawMenu`'s `touch`): TAP TO
+CLIMB where PRESS SPACE TO CLIMB stands, and OPTIONS STATS REPLAYS HELP where the key hints
+were, on the same plaque -- "can we rebuild a nice menu screen for the mobile version". They are
+TARGETS, not keys: `menuTargets()` gives their rectangles in view units, `Renderer.toView` turns
+a finger's CSS pixels into view units (the canvas centred at its CSS size, the wings off its
+left), and a finger that lands on one and LIFTS on it presses its key -- one that slides off
+first presses nothing -- while `pressedCode` lights it in the frame. Not while the attract view
+is up: that tap only wakes the title. The help says TAP TO GO BACK, and the whole page is its
+target.
+
 Every button is laid out in CSS pixels from the viewport alone (`touchLayout`), and the same
-numbers place the elements and hit-test the fingers. The Android app's background and
-foreground arrive as `app:background` / `app:foreground` events: a run pauses and the sound
-goes with the app. `tools/test-touch.mjs` boots the real `main.js` with `?touch`.
+numbers place the elements and hit-test the fingers. The page runs under the camera's cut-out,
+and a key stands clear of the HOLE only when it is beside one: the Android app says where the
+holes are (`gameShell.cutouts()` at the start, an `app:cutouts` event when the phone turns
+over). The page's safe-area insets, all a browser says, are a band down the whole side -- a
+punch hole's is the status bar's height -- and pushed off it ESC stood over the HUD's floor
+counter and < > ^ v over the options' words; a browser still keeps to the band. The Android
+app's background and foreground arrive as
+`app:background` / `app:foreground` events: a run pauses and the sound goes with the app.
+`tools/test-touch.mjs` boots the real `main.js` with `?touch`.
 
 ## A page inside someone else's page
 

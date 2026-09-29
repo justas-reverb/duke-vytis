@@ -190,8 +190,8 @@ export function bloodStains(game) {
  * that decides whether the game fills the screen or sits in the middle of it is worth
  * a test rather than a look on one display.
  */
-export function scaleFor(w, h, mode = 'auto') {
-  const raw = Math.min(w / SW, h / SH);
+export function scaleFor(w, h, mode = 'auto', sw = SW) {
+  const raw = Math.min(w / sw, h / SH);
   if (!(raw > 0)) return 1;
   // Smaller than the backing store. Whatever the mode says, upscaling here would push
   // the canvas outside the window and CROP the play area rather than letterbox it --
@@ -352,6 +352,19 @@ export function lowLatencyWorks(ua = typeof navigator !== 'undefined' && navigat
   return !/; wv\)/.test(String(ua || ''));
 }
 
+/**
+ * The side margins a viewport wants [view units a side, whole]: as many as it is wider than
+ * 16:9, rounded up so the canvas reaches both edges, and none on a 16:9 or narrower screen.
+ * A phone held sideways is about 20:9 -- the Pixel 10's 2424 x 1080 wants 60 a side.
+ */
+export const WING_MAX = 200;     // a side [view units]: 32:9 is 240, capped where a margin is all wall
+export function wingsFor(w, h) {
+  if (!(w > 0 && h > 0)) return 0;
+  return Math.max(0, Math.min(WING_MAX, Math.ceil(((w / h) * VH - VW) / 2 - 0.25)));
+}
+/** How much of the frame's edge a margin is filled from [view units]: wall at every zoom, clear of the HUD. */
+export const WING_STRIP = 12;
+
 export function screenContext(canvas, lowLatency) {
   const ctx = canvas.getContext('2d', lowLatency ? { alpha: false, desynchronized: true } : { alpha: false });
   ctx.imageSmoothingEnabled = false;
@@ -370,6 +383,9 @@ export class Renderer {
     this.screenCtx = screenContext(canvas, this.lowLatency);
     this.back = null;
     this.ctx = this.lowLatency ? this.backBuffer() : this.screenCtx;
+    // Side margins [view units a side]; 0 on a 16:9 screen (wingsFor, setWings).
+    this.wing = 0;
+    this.edgeTint = 0;
     this.backdrop = new Backdrop();
     this.scale = 1;
     this.t = 0;
@@ -429,14 +445,31 @@ export class Renderer {
     const mode = this.settings ? this.settings.scaleMode : 'auto';
     const w = window.innerWidth;
     const h = window.innerHeight;
-    const s = scaleFor(w, h, mode);
+    const wing = wingsFor(w, h);
+    if (wing !== this.wing) this.setWings(wing);
+    const sw = SW + 2 * this.wing * PX;
+    const s = scaleFor(w, h, mode, sw);
     this.scale = s;
-    this.canvas.style.width = Math.round(SW * s) + 'px';
+    this.canvas.style.width = Math.round(sw * s) + 'px';
     this.canvas.style.height = Math.round(SH * s) + 'px';
     // Nearest-neighbour is right for integer scaling and wrong-but-preferable for a
     // fractional one; without it the browser would blur the whole image rather than
     // just making some rows a pixel taller than others.
     this.canvas.style.imageRendering = 'pixelated';
+  }
+
+  /**
+   * A point on the page [CSS px: a finger's clientX and clientY] in view units -- 0 to VW across
+   * the frame, below 0 and past VW in the wings. The canvas stands centred in the page
+   * (index.html #wrap) at the CSS size fit() gave it, so the arithmetic needs no layout read; a
+   * phone's title screen hit-tests its buttons with it (ui/touch.js).
+   */
+  toView(x, y) {
+    const w = window.innerWidth, h = window.innerHeight;
+    const cw = parseFloat(this.canvas.style.width) || w, ch = parseFloat(this.canvas.style.height) || h;
+    const bx = (x - (w - cw) / 2) * (this.canvas.width / cw);
+    const by = (y - (h - ch) / 2) * (this.canvas.height / ch);
+    return [bx / PX - this.wing, by / PX];
   }
 
   applySettings(settings) {
@@ -462,7 +495,7 @@ export class Renderer {
     const doc = typeof document !== 'undefined' ? document : null;
     if (!doc || typeof doc.createElement !== 'function') return;
     const c = doc.createElement('canvas');
-    c.width = SW;
+    c.width = old.width || SW;
     c.height = SH;
     if (old.id) c.id = old.id;
     if (old.className) c.className = old.className;
@@ -476,6 +509,7 @@ export class Renderer {
     this.canvas = c;
     this.screenCtx = ctx;
     this.ctx = on ? this.backBuffer() : ctx;
+    if (this.wing) this.ctx = this.backBuffer();
     this.lowLatency = on;
     this.fit();
     if (hadFocus && typeof c.focus === 'function') c.focus({ preventScroll: true });
@@ -513,12 +547,59 @@ export class Renderer {
    * after everything is drawn.
    */
   present() {
-    if (!this.lowLatency || !this.back) return;
+    if (!this.back || !(this.lowLatency || this.wing)) return;
     const s = this.screenCtx;
-    s.setTransform(1, 0, 0, 1, 0, 0);
+    s.setTransform(1, 0, 0, 1, this.wing * PX, 0);
     s.globalAlpha = 1;
     s.globalCompositeOperation = 'source-over';
     s.drawImage(this.back, 0, 0);
+    if (this.wing) this.drawWings(s);
+  }
+
+  /**
+   * Side margins on a screen wider than 16:9 (wingsFor). A phone held sideways is about 20:9,
+   * and the game's 16:9 frame stood in the middle between two black bars ("the game doesnt
+   * actually seem to go fully full screen on my google pixel 10", 2026-09-29). The frame is
+   * drawn as ever, into the back buffer at 1920 x 1080 -- nothing the game draws or simulates
+   * changes, and the shaft is as wide as ever -- and put in the middle of a canvas that much
+   * wider (present). Here each margin is filled with the frame's own outermost WING_STRIP,
+   * mirrored outward and again, so every seam joins a column to its own copy: in play that is
+   * the tower's wall, going on, with whatever lies on it (the fire's glow, a flash, the pause's
+   * dim); in a menu, the screen's own panel. The frame's dark edge (drawVignette) is drawn at
+   * the canvas's edges instead of the frame's, or it would stripe the margins.
+   */
+  setWings(units) {
+    this.wing = units;
+    this.canvas.width = SW + 2 * units * PX;
+    this.canvas.height = SH;
+    // A canvas resized is a context reset: smoothing back on, which would blur every blit.
+    this.screenCtx.imageSmoothingEnabled = false;
+    this.ctx = this.lowLatency || units ? this.backBuffer() : this.screenCtx;
+  }
+
+  drawWings(s) {
+    const F = this.wing * PX, S = WING_STRIP * PX;
+    s.setTransform(1, 0, 0, 1, 0, 0);
+    for (let k = 0, x = 0; x < F; k++, x += S) {
+      // Left: tile k spans [F - (k+1)S, F - kS); even tiles mirrored, so the frame's first
+      // column meets its own copy.
+      if (k % 2 === 0) s.setTransform(-1, 0, 0, 1, F - k * S, 0);
+      else s.setTransform(1, 0, 0, 1, F - (k + 1) * S, 0);
+      s.drawImage(this.back, 0, 0, S, SH, 0, 0, S, SH);
+      // Right: tile k spans [F + SW + kS, F + SW + (k+1)S), from the frame's last columns.
+      if (k % 2 === 0) s.setTransform(-1, 0, 0, 1, F + SW + (k + 1) * S, 0);
+      else s.setTransform(1, 0, 0, 1, F + SW + k * S, 0);
+      s.drawImage(this.back, SW - S, 0, S, SH, 0, 0, S, SH);
+    }
+    if (this.edgeTint > 0) {
+      s.setTransform(1, 0, 0, 1, 0, 0);
+      s.globalAlpha = this.edgeTint;
+      s.fillStyle = '#220008';
+      s.fillRect(0, 0, 4 * PX, SH);
+      s.fillRect(this.canvas.width - 4 * PX, 0, 4 * PX, SH);
+      s.globalAlpha = 1;
+    }
+    this.edgeTint = 0;
   }
 
   /** World -> screen for the live zoom. The shaft always fills the screen width. */
@@ -1644,8 +1725,12 @@ export class Renderer {
     ctx.fillStyle = '#220008';
     ctx.fillRect(0, 0, VW, 4);
     ctx.fillRect(0, VH - 4, VW, 4);
-    ctx.fillRect(0, 0, 4, VH);
-    ctx.fillRect(VW - 4, 0, 4, VH);
+    // With side margins the side bands belong at the canvas's edges, not the frame's (drawWings).
+    if (this.wing) this.edgeTint = k * 0.45;
+    else {
+      ctx.fillRect(0, 0, 4, VH);
+      ctx.fillRect(VW - 4, 0, 4, VH);
+    }
     ctx.globalAlpha = 1;
   }
 

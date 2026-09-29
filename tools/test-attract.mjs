@@ -58,7 +58,7 @@ const MUTANTS = {
   'prompt-steady': [['src/ui/screens.js', '  const wave = 0.5 + 0.5 * Math.tanh(4 * Math.cos(2 * Math.PI * ATTRACT_FLASH * t) + 1);', '  const wave = 1;']],
   // caught by B (the prompt's plate narrower than its letters: they ran off both ends, as the
   // first cut sized it -- twice the scale-1 width, 48 units short)
-  'prompt-off-plate': [['src/ui/screens.js', '  const w = textWidth(ATTRACT_PROMPT, 2) + 28;', '  const w = textWidth(ATTRACT_PROMPT) * 2 + 28;']],
+  'prompt-off-plate': [['src/ui/screens.js', '  const w = textWidth(words, 2) + 28;', '  const w = textWidth(words) * 2 + 28;']],
   // caught by B (the prompt flashes all the way off)
   'prompt-goes-out': [['src/ui/screens.js', 'const ATTRACT_FLASH = 1.2, ATTRACT_DIM = 0.2;', 'const ATTRACT_FLASH = 1.2, ATTRACT_DIM = 0;']],
 };

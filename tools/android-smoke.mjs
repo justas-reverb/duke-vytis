@@ -6,13 +6,15 @@
 //                                [--keep]             leave the emulator running, for a look
 //                                [--serial=emulator-N] use one already running; neither boot nor kill it
 //
-// What it proves, in order: the app starts and the page boots to the title with its touch keys up,
-// and the title is ON THE SCREEN -- a screenshot whose game area is black fails, however well the
-// page runs underneath (the first run here had the game running and nothing shown); a tap on
-// SPACE starts a run (through the first-run guide, which a fresh install shows first); > held
-// runs him right; the phone's Back pauses the run; the app sent to the background and brought
-// back stays paused with the music held; Back twice more leaves the pause and pauses again; and
-// the page logged no error. It exits 0 on all of it.
+// What it proves, in order: the app starts and the page boots to the title, which has no fixed
+// keys and draws its own buttons, and the title is ON THE SCREEN -- a screenshot whose game area
+// is black fails, however well the page runs underneath (the first run here had the game running
+// and nothing shown); the page fills the screen edge to edge, the camera's cut-out included; a
+// tap on OPTIONS opens the options with TOUCH KEYS first, and Back leaves them; a tap on TAP TO
+// CLIMB starts a run (through the first-run guide, which a fresh install shows first) with its
+// keys up; > held runs him right; the phone's Back pauses the run; the app sent to the background
+// and brought back stays paused with the music held; Back twice more leaves the pause and pauses
+// again; and the page logged no error. It exits 0 on all of it.
 //
 // The emulator is this game's own AVD (duke_vytis_test, made here from the newest installed
 // system image if missing -- another project's AVD is never touched), run with no window and NO
@@ -190,8 +192,14 @@ async function main() {
     ok(state === 'menu', `the page booted to the title (${state})`);
     const shot = (name) => { if (SHOTS) { fs.mkdirSync(String(SHOTS), { recursive: true }); fs.writeFileSync(path.join(String(SHOTS), name + '.png'), adbBuf('exec-out', 'screencap', '-p')); } };
     await sleep(2500);
-    const page = await V('({ dpr: devicePixelRatio, w: innerWidth, h: innerHeight, touch: !!VYTIS.touch, buttons: VYTIS.touch ? VYTIS.touch.buttons().map((b) => [b.id, b.x, b.y, b.w, b.h]) : [] })');
-    ok(page && page.touch && page.buttons.length >= 6, `the touch keys are up: ${page && page.buttons.map((b) => b[0]).join(' ')}`);
+    const page = await V('({ dpr: devicePixelRatio, w: innerWidth, h: innerHeight, sw: screen.width, sh: screen.height, touch: !!VYTIS.touch, buttons: VYTIS.touch ? VYTIS.touch.buttons().map((b) => [b.id, b.x, b.y, b.w, b.h]) : [], targets: VYTIS.touch ? VYTIS.touch.targets().map((t) => t.code) : [], cw: parseFloat(VYTIS.renderer.canvas.style.width), ch: parseFloat(VYTIS.renderer.canvas.style.height), wing: VYTIS.renderer.wing })');
+    ok(page && page.touch && page.buttons.length === 0 && page.targets.join(' ') === 'Space KeyO KeyS KeyR KeyH',
+      `the title has no fixed keys (${page && page.buttons.map((b) => b[0]).join(' ')}) and its own buttons: ${page && page.targets.join(' ')}`);
+    // Edge to edge: the page is the whole screen, and the canvas the whole page.
+    const [dw, dh] = adb('shell', 'wm', 'size').match(/(\d+)x(\d+)\s*$/).slice(1).map(Number);
+    const [pw, ph] = [Math.round(page.w * page.dpr), Math.round(page.h * page.dpr)];
+    ok(Math.abs(pw - Math.max(dw, dh)) <= 2 && Math.abs(ph - Math.min(dw, dh)) <= 2 && Math.abs(page.cw - page.w) <= 1 && Math.abs(page.ch - page.h) <= 1,
+      `the page is ${pw} x ${ph} of a ${Math.max(dw, dh)} x ${Math.min(dw, dh)} screen, the canvas ${page.cw} x ${page.ch} of its ${page.w} x ${page.h} CSS px, ${page.wing} units of wings a side`);
     // On the screen, not only in the page: the emulator draws in software, and the title's first
     // frames -- the painting ahead of a cold start -- take seconds there, so it is waited for.
     const tShow = Date.now();
@@ -199,25 +207,56 @@ async function main() {
     while (Date.now() - tShow < 60000 && (shown = lit(adbBuf('exec-out', 'screencap', '-p'))) <= 0.15) await sleep(1000);
     shot('1-title');
     ok(shown > 0.15, `the title is on the screen after ${((Date.now() - tShow) / 1000).toFixed(0)} s: ${(shown * 100).toFixed(0)}% of the middle lit (a black game area is under 5%)`);
-    // Where a key is on the SCREEN: the page's CSS pixels times its ratio, past the cut-out.
-    const pad = /cut-out padding (\d+),(\d+),(\d+),(\d+)/.exec(adb('logcat', '-d', '-s', 'DukeVytis:I'));
-    const [pl, pt] = pad ? [Number(pad[1]), Number(pad[2])] : [0, 0];
+    const cut = /cut-out insets (\d+),(\d+),(\d+),(\d+)/.exec(adb('logcat', '-d', '-s', 'DukeVytis:I'));
+    if (cut) console.log(`  (the cut-out's insets, l t r b: ${cut.slice(1).join(' ')} px; nothing padded)`);
+    // Where a key is on the SCREEN: the page's CSS pixels times its ratio (the page is the screen).
     const at = async (id) => {
       const bs = await V('VYTIS.touch.buttons().map((b) => [b.id, b.x, b.y, b.w, b.h])');
       const b = bs.find((x) => x[0] === id);
-      return b ? [Math.round(pl + (b[1] + b[3] / 2) * page.dpr), Math.round(pt + (b[2] + b[4] / 2) * page.dpr)] : null;
+      return b ? [Math.round((b[1] + b[3] / 2) * page.dpr), Math.round((b[2] + b[4] / 2) * page.dpr)] : null;
     };
-    // SPACE: a run.
-    const sp = await at('jump');
-    adb('shell', 'input', 'tap', String(sp[0]), String(sp[1]));
+    // Where a title button is on the screen: its middle in view units, into the page's CSS pixels
+    // (the canvas centred at its CSS size, the frame `wing` units in), times the ratio.
+    const onTitle = async (code) => {
+      const p = await V(`(() => { const t = VYTIS.touch.targets().find((x) => x.code === '${code}'); if (!t) return null;
+        const R = VYTIS.renderer, c = R.canvas, cw = parseFloat(c.style.width), ch = parseFloat(c.style.height);
+        return [(innerWidth - cw) / 2 + (t.x + t.w / 2 + R.wing) * 4 * cw / c.width, (innerHeight - ch) / 2 + (t.y + t.h / 2) * 4 * ch / c.height]; })()`);
+      return p ? [Math.round(p[0] * page.dpr), Math.round(p[1] * page.dpr)] : null;
+    };
+    // OPTIONS: the options, TOUCH KEYS first; Back leaves them.
+    const op = await onTitle('KeyO');
+    adb('shell', 'input', 'tap', String(op[0]), String(op[1]));
+    let opt = null;
+    for (let i = 0; i < 20 && opt !== 'options'; i++) { await sleep(250); opt = await V('VYTIS.game.state'); }
+    await sleep(1500);
+    shot('4-options');
+    const keysAt = await V('VYTIS.settings().touchKeys');
+    adb('shell', 'input', 'keyevent', 'KEYCODE_BACK');
+    await sleep(800);
+    const backTo = await V('VYTIS.game.state');
+    ok(opt === 'options' && keysAt === 0.8 && backTo === 'menu', `a tap on OPTIONS (${op.join(',')}) opened ${opt}, TOUCH KEYS at ${keysAt}; Back went to ${backTo}`);
+    // TAP TO CLIMB: a run.
+    const cl = await onTitle('Space');
+    adb('shell', 'input', 'tap', String(cl[0]), String(cl[1]));
     let run = null, guide = false;
     for (let i = 0; i < 20 && run !== 'playing'; i++) {
       await sleep(250);
       run = await V('VYTIS.game.state');
       // A fresh install shows the guide on its first climb; SPACE there starts the climb.
-      if (run === 'tutorial' && !guide) { guide = true; await sleep(500); adb('shell', 'input', 'tap', String(sp[0]), String(sp[1])); }
+      if (run === 'tutorial' && !guide) {
+        guide = true;
+        await sleep(800);
+        const sp = await at('jump');
+        if (sp) adb('shell', 'input', 'tap', String(sp[0]), String(sp[1]));
+      }
     }
-    ok(run === 'playing', `a tap on SPACE (${sp.join(',')}) started a run${guide ? ', through the first-run guide' : ''} (${run})`);
+    ok(run === 'playing', `a tap on TAP TO CLIMB (${cl.join(',')}) started a run${guide ? ', through the first-run guide' : ''} (${run})`);
+    const keys = await V('VYTIS.touch.buttons().map((b) => b.id).join(" ")');
+    ok(keys === 'left right jump esc', `the run's keys are up: ${keys}`);
+    // The camera's hole, as the app told the page (gameShell.cutouts): no key over it.
+    const holes = await V('JSON.stringify(VYTIS.touch.holes)');
+    const over = await V(`(() => { const hs = VYTIS.touch.holes || []; return VYTIS.touch.buttons().filter((b) => hs.some((h) => b.x < h.x1 && h.x0 < b.x + b.w && b.y < h.y1 && h.y0 < b.y + b.h)).map((b) => b.id); })()`);
+    ok(Array.isArray(over) && !over.length, `no key over the camera's hole: the page's holes ${holes} (CSS px)${over && over.length ? ', under it: ' + over.join(' ') : ''}`);
     // A run's first frames stall a software-drawn page for seconds; a hold made then arrives as a
     // press and a release together, and he never moves. Wait until it draws at a playable rate.
     const rate = () => V('new Promise((r) => { let n = 0; const t0 = performance.now(); const f = () => { n++; if (performance.now() - t0 < 1000) requestAnimationFrame(f); else r(n); }; requestAnimationFrame(f); })');

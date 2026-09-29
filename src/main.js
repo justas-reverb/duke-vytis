@@ -7,13 +7,14 @@ import { Gamepad } from './core/gamepad.js';
 import { watchEmbed, fullscreenAllowed } from './core/embed.js';
 import { Game, STATE } from './game/game.js';
 import { AutoInput, AutoPlayer, startDemo } from './game/autoplay.js';
-import { Renderer } from './render/renderer.js';
+import { Renderer, lowLatencyWorks } from './render/renderer.js';
 import { Audio, SAMPLE_NAMES } from './render/audio.js';
 import { wireGameAudio } from './render/gamesounds.js';
 import { drawHud, drawPerf } from './ui/hud.js';
 import { drawMenu, drawGameOver, drawStats, drawHelp, drawFalling, drawFallWords, drawOptions, drawPaused, drawQuit, PAGES, drawTutorial, TUTORIAL_PAGES } from './ui/screens.js';
 import { drawSoundNotice, SOUND_PLACES } from './ui/screens.js';
 import { ATTRACT_IDLE, ATTRACT_FADE, drawAttractPrompt } from './ui/screens.js';
+import { menuTargets, warmTouch } from './ui/screens.js';
 import * as Settings from './game/settings.js';
 import { PARTICLE_BUDGET } from './game/settings.js';
 import * as Stats from './game/stats.js';
@@ -100,6 +101,15 @@ let all = Stats.load();
 let settings = Settings.load();
 let optSel = 0;
 let optFrom = STATE.MENU;
+
+// Played by touch -- the Android build, or a phone's browser (ui/touch.js touchWanted). A phone's
+// defaults go into the save the first time (Settings.phoneDefaults: FRAME CAP 60).
+const touchUI = touchWanted();
+if (touchUI) Settings.phoneDefaults(settings);
+// The options' rows on this screen (Settings.optionsFor): TOUCH KEYS on a phone, LOW LATENCY
+// where the hint can work. `optSel` indexes this list, never OPTIONS itself.
+const LOW_LATENCY_WORKS = lowLatencyWorks();
+const optList = () => Settings.optionsFor({ touch: touchUI, lowLatency: LOW_LATENCY_WORKS });
 
 function applySettings() {
   renderer.applySettings(settings);
@@ -312,6 +322,7 @@ function ensureAudio() {
  */
 function soundNotice() {
   if (!audio.blocked || activated()) return false;
+  if (touchUI && input.lastDevice !== 'pad') return 'touch';
   return input.lastDevice === 'pad' ? 'pad' : true;
 }
 
@@ -425,17 +436,18 @@ function onKey(code) {
 
   switch (game.state) {
     case STATE.OPTIONS: {
-      const n = Settings.OPTIONS.length;
+      const rows = optList();
+      const n = rows.length;
       if (code === 'ArrowUp' || code === 'KeyW') { optSel = (optSel + n - 1) % n; audio.sfxMenu('move'); }
       else if (code === 'ArrowDown' || code === 'KeyS') { optSel = (optSel + 1) % n; audio.sfxMenu('move'); }
       else if (code === 'ArrowLeft' || code === 'KeyA') {
-        Settings.cycle(settings, Settings.OPTIONS[optSel].key, -1); applySettings(); audio.sfxMenu('move');
+        Settings.cycle(settings, rows[optSel].key, -1); applySettings(); audio.sfxMenu('move');
       } else if (code === 'ArrowRight' || code === 'KeyD' || code === 'Space' || code === 'Enter') {
         // Action rows run something instead of holding a value, so they are intercepted
         // here: cycle() leaves a row with no `values` alone, and would do nothing.
-        const act = Settings.actionFor(Settings.OPTIONS[optSel].key);
+        const act = Settings.actionFor(rows[optSel].key);
         if (act === 'guide') { openTutorial(STATE.OPTIONS); }
-        else { Settings.cycle(settings, Settings.OPTIONS[optSel].key, 1); applySettings(); audio.sfxMenu('move'); }
+        else { Settings.cycle(settings, rows[optSel].key, 1); applySettings(); audio.sfxMenu('move'); }
       } else if (code === 'Escape') { game.state = optFrom; audio.sfxMenu('back'); }
       break;
     }
@@ -685,11 +697,11 @@ function drawFrame(alpha, forcedDt) {
         // watching -- which is the entire reason it is running.
         ctx.fillStyle = '#05030a9e';
         ctx.fillRect(0, 0, VW, VH);
-        drawMenu(ctx, all, uiT, dt, true, soundNotice());
+        drawMenu(ctx, all, uiT, dt, true, soundNotice(), touchMenu());
         if (quitting) drawQuit(ctx, quitBlocked, uiT);
         ctx.globalAlpha = 1;
       }
-      if (k > 0) drawAttractPrompt(ctx, uiT, k);
+      if (k > 0) drawAttractPrompt(ctx, uiT, k, touchUI);
     } else if (game.state === STATE.TUTORIAL) {
       // Same treatment as the menu: the guide is drawn over a game that is actually
       // being played, because every page points at something the bot is doing.
@@ -701,14 +713,14 @@ function drawFrame(alpha, forcedDt) {
     } else if (game.state === STATE.OPTIONS) {
       ui();
       window.VYTIS_SCALE = renderer.scale;
-      drawOptions(ctx, settings, optSel, uiT, loop);
+      drawOptions(ctx, settings, optSel, uiT, loop, optList(), touchUI);
     } else if (game.state === STATE.STATS) {
       ui();
       drawStats(ctx, all, statsPage, uiT, awardsResetArmed);
     } else if (game.state === STATE.HELP) {
       ui();
-      drawMenu(ctx, all, uiT, dt);
-      drawHelp(ctx, uiT);
+      drawMenu(ctx, all, uiT, dt, false, false, touchMenu());
+      drawHelp(ctx, uiT, touchUI);
     } else {
       // Renderer.draw freezes itself when the game is paused -- alpha and dt both. See
       // the comment there; it is not the caller's job to remember.
@@ -757,9 +769,59 @@ function drawFrame(alpha, forcedDt) {
 // A phone -- the Android build (android/), or a phone's browser -- plays on on-screen keys
 // (ui/touch.js): each button a keydown and keyup on this window, as a keyboard's, so nothing
 // above knows the difference. On a desktop, with no `touch` in the address, none are made.
-const touch = touchWanted() ? new TouchControls({
+//
+// Each screen has the fixed buttons its keys are for (touchKeys), no more: none on the title,
+// whose own buttons are drawn on it (screens.js TOUCH_BUTTONS), and ^ v only where a cursor
+// moves -- the user, 2026-09-29: "up and down arrows appear on the main menu when they do nothing
+// there". What a screen draws to be tapped is `touchTargets`, in view units.
+const TOUCH_KEYS = {
+  run: ['left', 'right', 'jump', 'esc'],                    // a run, the guide
+  watch: ['left', 'right', 'up', 'down', 'jump', 'esc'],    // a replay: seek, speed, pause, leave
+  list: ['up', 'down', 'jump', 'esc'],                      // the replays' list
+  options: ['up', 'down', 'left', 'right', 'jump', 'esc'],
+  pages: ['left', 'right', 'esc'],                          // the statistics' pages
+  confirm: ['jump', 'esc'],                                 // the pause, the fall, the board, the race's question
+  back: ['esc'],                                            // the quit's question
+  none: [],
+};
+function touchKeys() {
+  if (replays.asking) return TOUCH_KEYS.confirm;
+  if (replays.watching) return TOUCH_KEYS.watch;
+  if (replays.active) return TOUCH_KEYS.list;
+  switch (game.state) {
+    case STATE.PLAYING: case STATE.TUTORIAL: return TOUCH_KEYS.run;
+    case STATE.OPTIONS: return TOUCH_KEYS.options;
+    case STATE.STATS: return TOUCH_KEYS.pages;
+    case STATE.MENU: return quitting ? TOUCH_KEYS.back : TOUCH_KEYS.none;
+    case STATE.HELP: return TOUCH_KEYS.none;              // a tap anywhere is the way back (below)
+    default: return TOUCH_KEYS.confirm;                   // the pause, the fall, the scoreboard
+  }
+}
+const NO_TARGETS = [];
+// The help says TAP TO GO BACK: the whole page, the wings too, is ESC there.
+const ANYWHERE = [{ x: -1e4, y: -1e4, w: 2e4, h: 2e4, code: 'Escape' }];
+function touchTargets() {
+  if (replays.active || replays.asking) return NO_TARGETS;
+  // Not while the attract view is up, even fading: the tap that wakes it must not also press.
+  if (game.state === STATE.MENU) return quitting || attractK() > 0 ? NO_TARGETS : menuTargets();
+  if (game.state === STATE.HELP) return ANYWHERE;
+  return NO_TARGETS;
+}
+const touch = touchUI ? new TouchControls({
   mode: () => (game.state === STATE.PLAYING && !replays.active ? 'run' : 'menu'),
+  keys: touchKeys,
+  size: () => settings.touchKeys,
+  targets: touchTargets,
+  toView: (x, y) => renderer.toView(x, y),
 }) : null;
+if (touch) warmTouch();
+// What the title is told of the phone: the button a finger is on, to light it (screens.js drawMenu).
+const touchState = { pressed: null };
+function touchMenu() {
+  if (!touch) return null;
+  touchState.pressed = touch.pressedCode;
+  return touchState;
+}
 
 // The Android build going to the background and back (android/, MainActivity's onPause and
 // onResume): the run pauses as a blur pauses it, and the sound goes with the app -- in a browser
@@ -901,6 +963,8 @@ toMenu();
 window.VYTIS = {
   game, loop, renderer, audio, STEP, input, pad, touch, embed, replays, demoGame,
   stats: () => all,
+  settings: () => settings,
+  attractK,
   board: () => ({ records, unlocked }),
   resetStats: () => { all = Stats.reset(); },
   update, renderFrame,
