@@ -1,0 +1,18 @@
+logs/
+node_modules/
+
+# Sound samples are the user's own; only the README is tracked.
+assets/sfx/*
+!assets/sfx/README.md
+
+# Screenshots taken while working. tools/shot*.mjs write these constantly.
+*.png
+!assets/**/*.png
+# The README's screenshots.
+!docs/images/*.png
+
+# Packaged builds.
+dist/
+
+# Agent worktrees. Each is its own checkout of this repo; never commit them.
+.claude/worktrees/

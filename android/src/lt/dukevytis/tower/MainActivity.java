@@ -1,0 +1,251 @@
+package lt.dukevytis.tower;
+
+import android.app.Activity;
+import android.content.pm.ApplicationInfo;
+import android.net.Uri;
+import android.os.Build;
+import android.os.Bundle;
+import android.util.Log;
+import android.view.DisplayCutout;
+import android.view.View;
+import android.view.ViewGroup;
+import android.view.WindowInsets;
+import android.view.WindowInsetsController;
+import android.view.WindowManager;
+import android.webkit.ConsoleMessage;
+import android.webkit.JavascriptInterface;
+import android.webkit.RenderProcessGoneDetail;
+import android.webkit.WebChromeClient;
+import android.webkit.WebResourceRequest;
+import android.webkit.WebResourceResponse;
+import android.webkit.WebSettings;
+import android.webkit.WebView;
+import android.webkit.WebViewClient;
+import android.widget.FrameLayout;
+import android.window.OnBackInvokedCallback;
+import android.window.OnBackInvokedDispatcher;
+
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.HashMap;
+import java.util.Map;
+
+/**
+ * Duke Vytis on a phone: the web build (tools/build-web.mjs, packed into the APK's
+ * assets/www/ by tools/build-apk.mjs) in a WebView.
+ *
+ * The game is ES modules, which a browser will not load from file:// -- so the files are
+ * served from an https address this app answers itself (shouldInterceptRequest), the one
+ * Android keeps for exactly that (appassets.androidplatform.net), with each file's proper
+ * type. Nothing else is fetched: any other address gets a 404, so the game never touches
+ * the network. It loads with ?touch, which puts up its on-screen keys (src/ui/touch.js).
+ *
+ * The game asks the page's shell to quit and about fullscreen (window.gameShell, as the
+ * desktop build's Electron preload provides it); the phone's Back is the game's Escape;
+ * and leaving the app pauses a run and silences the music (the page's app:background and
+ * app:foreground events, main.js).
+ */
+public class MainActivity extends Activity {
+  static final String TAG = "DukeVytis";
+  static final String HOST = "appassets.androidplatform.net";
+  static final String HOME = "https://" + HOST + "/index.html?touch";
+
+  private WebView web;
+  private FrameLayout root;
+
+  @Override
+  protected void onCreate(Bundle state) {
+    super.onCreate(state);
+    getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+    if ((getApplicationInfo().flags & ApplicationInfo.FLAG_DEBUGGABLE) != 0) {
+      WebView.setWebContentsDebuggingEnabled(true);
+    }
+    root = new FrameLayout(this);
+    root.setBackgroundColor(0xff05030a);
+    // The camera cut-out: the page is laid out beside it, never under it.
+    root.setOnApplyWindowInsetsListener(new View.OnApplyWindowInsetsListener() {
+      @Override
+      public WindowInsets onApplyWindowInsets(View v, WindowInsets insets) {
+        int l = 0, t = 0, r = 0, b = 0;
+        if (Build.VERSION.SDK_INT >= 28) {
+          DisplayCutout c = insets.getDisplayCutout();
+          if (c != null) {
+            l = c.getSafeInsetLeft(); t = c.getSafeInsetTop();
+            r = c.getSafeInsetRight(); b = c.getSafeInsetBottom();
+          }
+        }
+        v.setPadding(l, t, r, b);
+        Log.i(TAG, "cut-out padding " + l + "," + t + "," + r + "," + b);
+        return insets;
+      }
+    });
+    setContentView(root);
+    makeWebView();
+    if (Build.VERSION.SDK_INT >= 33) {
+      getOnBackInvokedDispatcher().registerOnBackInvokedCallback(
+          OnBackInvokedDispatcher.PRIORITY_DEFAULT,
+          new OnBackInvokedCallback() {
+            @Override public void onBackInvoked() { back(); }
+          });
+    }
+    immersive();
+  }
+
+  private void makeWebView() {
+    web = new WebView(this);
+    web.setBackgroundColor(0xff05030a);
+    WebSettings s = web.getSettings();
+    s.setJavaScriptEnabled(true);
+    s.setDomStorageEnabled(true);                    // localStorage: records, settings, replays
+    s.setMediaPlaybackRequiresUserGesture(false);    // the music starts with the game
+    s.setAllowFileAccess(false);
+    s.setAllowContentAccess(false);
+    s.setSupportZoom(false);
+    s.setBuiltInZoomControls(false);
+    web.addJavascriptInterface(new Shell(), "gameShell");
+    web.setWebViewClient(new Files());
+    web.setWebChromeClient(new WebChromeClient() {
+      @Override
+      public boolean onConsoleMessage(ConsoleMessage m) {
+        int level = m.messageLevel() == ConsoleMessage.MessageLevel.ERROR ? Log.ERROR
+            : m.messageLevel() == ConsoleMessage.MessageLevel.WARNING ? Log.WARN : Log.INFO;
+        Log.println(level, TAG, m.message() + " (" + m.sourceId() + ":" + m.lineNumber() + ")");
+        return true;
+      }
+    });
+    root.addView(web, new FrameLayout.LayoutParams(
+        ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+    web.loadUrl(HOME);
+  }
+
+  /** The phone's Back is the game's Escape: pause, back out of a screen, quit from the title. */
+  private void back() {
+    js("(function(){var o={code:'Escape',key:'Escape',bubbles:true,cancelable:true};"
+        + "window.dispatchEvent(new KeyboardEvent('keydown',o));"
+        + "window.dispatchEvent(new KeyboardEvent('keyup',o));})()");
+  }
+
+  @SuppressWarnings("deprecation")
+  @Override
+  public void onBackPressed() {
+    // Below Android 13 only; from 13 the callback registered in onCreate takes Back.
+    back();
+  }
+
+  @Override
+  protected void onPause() {
+    js("window.dispatchEvent(new Event('app:background'))");
+    if (web != null) web.onPause();
+    super.onPause();
+  }
+
+  @Override
+  protected void onResume() {
+    super.onResume();
+    if (web != null) web.onResume();
+    js("window.dispatchEvent(new Event('app:foreground'))");
+    immersive();
+  }
+
+  @Override
+  public void onWindowFocusChanged(boolean hasFocus) {
+    super.onWindowFocusChanged(hasFocus);
+    if (hasFocus) immersive();
+  }
+
+  @Override
+  protected void onDestroy() {
+    if (web != null) { root.removeView(web); web.destroy(); web = null; }
+    super.onDestroy();
+  }
+
+  private void js(String code) {
+    if (web != null) web.evaluateJavascript(code, null);
+  }
+
+  /** The whole screen: no status bar, no navigation bar; a swipe from the edge shows them for a moment. */
+  @SuppressWarnings("deprecation")
+  private void immersive() {
+    if (Build.VERSION.SDK_INT >= 30) {
+      WindowInsetsController c = getWindow().getInsetsController();
+      if (c != null) {
+        c.hide(WindowInsets.Type.systemBars());
+        c.setSystemBarsBehavior(WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
+      }
+    } else {
+      getWindow().getDecorView().setSystemUiVisibility(
+          View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY | View.SYSTEM_UI_FLAG_FULLSCREEN
+          | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION | View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+          | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN);
+    }
+  }
+
+  /** What the page calls as window.gameShell; the desktop build's preload offers the same three. */
+  class Shell {
+    @JavascriptInterface public boolean isFullscreen() { return true; }
+    @JavascriptInterface public void toggleFullscreen() { /* always fullscreen */ }
+    @JavascriptInterface public void quit() {
+      runOnUiThread(new Runnable() {
+        @Override public void run() { finishAndRemoveTask(); }
+      });
+    }
+  }
+
+  /** The game's files, from the APK; nothing from anywhere else. */
+  class Files extends WebViewClient {
+    @Override
+    public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest req) {
+      Uri u = req.getUrl();
+      if (!"https".equals(u.getScheme()) || !HOST.equals(u.getHost())) return missing();
+      String path = u.getPath();
+      if (path == null || path.equals("/") || path.isEmpty()) path = "/index.html";
+      if (path.contains("..")) return missing();
+      try {
+        InputStream in = getAssets().open("www" + path);
+        String type = typeOf(path);
+        Map<String, String> headers = new HashMap<>();
+        headers.put("Cache-Control", "no-cache");
+        return new WebResourceResponse(type, type.startsWith("text/") ? "utf-8" : null, 200, "OK", headers, in);
+      } catch (IOException e) {
+        return missing();
+      }
+    }
+
+    @Override
+    public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest req) {
+      return !HOST.equals(req.getUrl().getHost());   // the game never leaves its own page
+    }
+
+    @Override
+    public boolean onRenderProcessGone(WebView view, RenderProcessGoneDetail detail) {
+      // The page's process died (memory, most likely): start it again rather than take the app down.
+      Log.e(TAG, "the page's process went; loading it again");
+      root.removeView(web);
+      web.destroy();
+      web = null;
+      makeWebView();
+      return true;
+    }
+  }
+
+  static WebResourceResponse missing() {
+    return new WebResourceResponse("text/plain", "utf-8", 404, "Not Found",
+        new HashMap<String, String>(), new ByteArrayInputStream(new byte[0]));
+  }
+
+  static String typeOf(String path) {
+    String p = path.toLowerCase();
+    if (p.endsWith(".html")) return "text/html";
+    if (p.endsWith(".js") || p.endsWith(".mjs")) return "text/javascript";
+    if (p.endsWith(".css")) return "text/css";
+    if (p.endsWith(".json")) return "application/json";
+    if (p.endsWith(".png")) return "image/png";
+    if (p.endsWith(".webp")) return "image/webp";
+    if (p.endsWith(".svg")) return "image/svg+xml";
+    if (p.endsWith(".ogg")) return "audio/ogg";
+    if (p.endsWith(".wav")) return "audio/wav";
+    if (p.endsWith(".mp3")) return "audio/mpeg";
+    return "application/octet-stream";
+  }
+}

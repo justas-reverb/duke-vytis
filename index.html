@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Duke Vytis and the Quest for New Lands</title>
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    background: #05030a;
+    overflow: hidden;
+    /* A pointer sitting over a pixel-art game is just clutter. */
+    cursor: none;
+  }
+  #wrap {
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  #screen {
+    /* The canvas backing store is 1920x1080 (VW*PX by VH*PX); the renderer sets both
+       the backing store and the CSS size, so the width/height attributes below are only
+       what a reader sees first. These three properties are what stop the browser from
+       smoothing the upscale into mush -- without them a 4K display interpolates every
+       one of the 2x2 blocks a backing-store pixel becomes (4x4 on the old 960x540 store)
+       and the whole point of the pixel art is lost. */
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+    -ms-interpolation-mode: nearest-neighbor;
+    display: block;
+    background: #000;
+    /* Hint the compositor to keep this on its own layer, so the scale is a GPU
+       blit rather than a per-frame CPU resample. */
+    will-change: transform;
+  }
+  #boot {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #7fdcff;
+    font: 14px/1.6 ui-monospace, Consolas, monospace;
+    background: #05030a;
+    text-align: center;
+    white-space: pre;
+  }
+  /* The two things a page embedded in another site (itch.io) has to say for itself; see
+     src/core/embed.js, which shows and hides them. Pointer events pass through, so the
+     click that answers the focus banner lands on the canvas and takes the keyboard. */
+  #focus-hint, #saves-off {
+    position: fixed;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 6px 14px;
+    font: 13px/1.5 ui-monospace, Consolas, monospace;
+    text-align: center;
+    background: #05030ae0;
+    border: 1px solid #2e2444;
+    pointer-events: none;
+    z-index: 2;
+  }
+  #focus-hint { top: 10px; color: #ffe23d; }
+  #saves-off { bottom: 10px; color: #9aa0bb; max-width: 90%; }
+  #focus-hint[hidden], #saves-off[hidden] { display: none; }
+</style>
+</head>
+<body>
+  <div id="wrap"><canvas id="screen" width="1920" height="1080"></canvas></div>
+  <div id="boot">LOADING DUKE VYTIS...</div>
+  <div id="focus-hint" hidden>CLICK THE GAME TO PLAY -- IT DOES NOT HAVE THE KEYBOARD</div>
+  <div id="saves-off" hidden>SAVES ARE OFF: THIS BROWSER BLOCKS STORAGE FOR A GAME INSIDE ANOTHER SITE, SO SCORES AND SETTINGS LAST ONLY UNTIL THE PAGE CLOSES</div>
+
+  <script type="module">
+    // ES modules over file:// are blocked by CORS, and that failure is silent enough
+    // that the page just looks broken. Say so plainly instead.
+    if (location.protocol === 'file:') {
+      document.getElementById('boot').textContent =
+        'This build uses ES modules, which browsers refuse to load from file://.\n\n' +
+        'Run  play.bat  (or  npm run serve  ) and open the address it prints.';
+    } else {
+      // The game is imported only once the LOADING line has been painted. Its modules evaluate
+      // as one long task -- the painting ahead included -- and a page gets no chance to paint in
+      // one: on a slow phone (the Android emulator: 22 s) the screen stayed BLACK for all of it,
+      // which reads as broken. A frame, then the import; and a timer as well, because some
+      // pages never fire requestAnimationFrame (an offscreen or hidden window).
+      let started = false;
+      const start = () => {
+        if (started) return;
+        started = true;
+        import('./src/main.js')
+          .then(() => { document.getElementById('boot').remove(); })
+          .catch((err) => {
+            document.getElementById('boot').textContent = 'FAILED TO START\n\n' + err;
+            console.error(err);
+          });
+      };
+      requestAnimationFrame(() => setTimeout(start, 0));
+      setTimeout(start, 100);
+    }
+  </script>
+</body>
+</html>

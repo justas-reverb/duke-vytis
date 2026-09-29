@@ -1,0 +1,65 @@
+{
+  "name": "duke-vytis",
+  "productName": "Duke Vytis",
+  "version": "1.0.0",
+  "description": "Duke Vytis and the Quest for New Lands",
+  "author": "Su Dievu Studios (https://sudievu.lt)",
+  "license": "UNLICENSED",
+  "type": "module",
+  "private": true,
+  "main": "electron/main.js",
+  "scripts": {
+    "start": "electron .",
+    "serve": "node tools/serve.mjs",
+    "web": "node tools/build-web.mjs",
+    "test": "node tools/test-all.mjs",
+    "test:all": "node tools/test-all.mjs --slow",
+    "test:deep": "node tools/test-reach.mjs 1000 20000",
+    "icon": "node tools/make-icon.mjs",
+    "music": "node tools/compose-music.mjs",
+    "dist": "node tools/make-icon.mjs && electron-builder --win",
+    "dist:dir": "node tools/make-icon.mjs && electron-builder --win --dir"
+  },
+  "build": {
+    "appId": "lt.dukevytis.tower",
+    "productName": "Duke Vytis",
+    "copyright": "Copyright © 2026 Su Dievu Studios",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "index.html",
+      "electron/**/*",
+      "src/**/*",
+      "assets/icon.png",
+      "assets/sfx/*.{ogg,wav}",
+      "assets/backgrounds/**/*.png",
+      "assets/decor/**/*.png"
+    ],
+    "win": {
+      "icon": "build/icon.ico",
+      "target": [
+        { "target": "portable", "arch": ["x64"] },
+        { "target": "nsis", "arch": ["x64"] }
+      ]
+    },
+    "portable": {
+      "artifactName": "Duke Vytis ${version} portable.exe"
+    },
+    "nsis": {
+      "artifactName": "Duke Vytis ${version} setup.exe",
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Duke Vytis"
+    },
+    "compression": "maximum"
+  },
+  "devDependencies": {
+    "electron": "^44.4.3",
+    "electron-builder": "^26.15.3"
+  }
+}

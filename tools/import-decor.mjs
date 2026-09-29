@@ -1,0 +1,143 @@
+// Bring the artist's platform furniture into the game.
+//
+//   node tools/import-decor.mjs                                  report
+//   node tools/import-decor.mjs --emit > src/render/decorart.js  write the manifest
+//   node tools/import-decor.mjs --dir=<folder>                   check another folder
+//
+// The sprites live in assets/decor/ as <ZONE>-<ELEMENT>.png, the element's name as on the
+// sheet with hyphens for spaces -- DUNGEON-SLUMPED-SKELETON.png -- any capitalisation. Each
+// holds every frame and variant of one element: frames side by side left to right, variants
+// stacked top to bottom, each cell exactly the element's box, so the file is
+// (box width x frames) by (box height x variants) art pixels, on a transparent background.
+// The boxes, frames and variants are in src/render/decorpaint/<zone>.js (and on the sheet
+// from tools/decor-sheet.mjs).
+//
+// This does not convert or copy anything: the game loads the PNGs as they are. It CHECKS
+// them, and it writes src/render/decorart.js, the list of which elements have a PNG that
+// passed -- the game only asks for what is listed, so an element with no art never
+// requests a file that is not there (a 404 fails the desktop build's smoke test), and a
+// file that fails a check is left out and the element stays painted.
+//
+// What it checks, per file:
+//   NAME   <ZONE>-<ELEMENT>.png for an element that exists; anything else is IGNORED.
+//   SIZE   exactly (w x frames) by (h x variants). A wrong size is a sheet cut wrong, and
+//          every cell of it would be misread, so it is left out.
+//   ALPHA  some pixel must be transparent: a PNG with none is a flat background, and would
+//          draw as a rectangle. Left out.
+//   CELLS  no cell (one frame of one variant) may be fully transparent: that frame would
+//          draw nothing and the element would blink out. Left out.
+
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { readPNG } from './pngread.mjs';
+
+const DIR = 'assets/decor';
+
+/**
+ * Check every PNG in `dir` against the registry. Returns { found, rows, problems, stray }:
+ * found[zone][key] = the file's path (as the game will request it), for every file that
+ * passed; rows, one per element, saying where its sprite comes from; problems, one line
+ * per rejected file; stray, the PNGs that are no element's.
+ */
+export async function scanDecor(dir = DIR) {
+  const { ZONES, pngName, painter } = await import('../src/render/decorpaint/index.js');
+  const files = fs.existsSync(dir) ? fs.readdirSync(dir) : [];
+  const byLower = new Map(files.map((f) => [f.toLowerCase(), f]));
+  const used = new Set();
+  const found = {};
+  const problems = [];
+  const rows = [];
+
+  for (const z of ZONES) {
+    for (const [key, e] of Object.entries(z.ELEMENTS)) {
+      const want = pngName(z.name, e.name);
+      const actual = byLower.get(want.toLowerCase());
+      const row = { zone: z.name, key, name: e.name, file: want, source: painter(e), note: '' };
+      rows.push(row);
+      if (!actual) continue;
+      used.add(actual);
+      const rel = `${dir}/${actual}`.replace(/\\/g, '/');
+      const why = check(rel, e);
+      if (why) { problems.push(`${actual}: ${why} -- left out, ${row.source === 'paint' ? 'paint()' : 'the placeholder'} draws it`); row.note = 'REJECTED'; continue; }
+      (found[z.name] = found[z.name] || {})[key] = rel;
+      row.source = 'png';
+    }
+  }
+  const stray = files.filter((f) => !used.has(f) && /\.png$/i.test(f));
+  return { found, rows, problems, stray };
+}
+
+/** Why a PNG cannot be used for element e, or null if it can. */
+function check(file, e) {
+  let img;
+  try { img = readPNG(file); } catch (err) { return err.message; }
+  const [w, h] = e.box;
+  const W = w * e.frames, H = h * e.variants;
+  if (img.w !== W || img.h !== H) {
+    return `${img.w}x${img.h}, must be ${W}x${H} (${e.frames} frame${e.frames > 1 ? 's' : ''} of ${w} across, ` +
+      `${e.variants} variant${e.variants > 1 ? 's' : ''} of ${h} down)`;
+  }
+  const alpha = (x, y) => (img.ch === 4 ? img.data[(y * img.w + x) * 4 + 3] : 255);
+  let clear = 0;
+  for (let y = 0; y < img.h; y++) for (let x = 0; x < img.w; x++) if (alpha(x, y) < 255) clear++;
+  if (!clear) return 'no transparent pixel anywhere -- the background must be transparent';
+  const blank = [];
+  for (let v = 0; v < e.variants; v++) {
+    for (let f = 0; f < e.frames; f++) {
+      let any = false;
+      for (let y = v * h; y < (v + 1) * h && !any; y++) {
+        for (let x = f * w; x < (f + 1) * w; x++) if (alpha(x, y)) { any = true; break; }
+      }
+      if (!any) blank.push(`variant ${v + 1} frame ${f + 1}`);
+    }
+  }
+  if (blank.length) return `fully transparent: ${blank.join(', ')}`;
+  return null;
+}
+
+/** The manifest module's source, for --emit. */
+export function manifest(found) {
+  const out = [];
+  out.push('// GENERATED by tools/import-decor.mjs -- do not edit by hand.');
+  out.push('//');
+  out.push('//   node tools/import-decor.mjs --emit > src/render/decorart.js');
+  out.push('//');
+  out.push("// The artist's furniture sprites that exist in assets/decor/ and passed the importer's");
+  out.push('// checks, by zone and element key. Anything not listed is painted by its zone module');
+  out.push('// (src/render/decorpaint/). Listing only what exists is what keeps the game from');
+  out.push('// requesting a missing file.');
+  out.push('');
+  out.push('export const DECOR_FILES = {');
+  for (const [zone, e] of Object.entries(found)) {
+    out.push(`  ${zone}: {`);
+    for (const [key, rel] of Object.entries(e)) out.push(`    ${key}: '${rel}',`);
+    out.push('  },');
+  }
+  out.push('};');
+  out.push('');
+  return out.join('\n');
+}
+
+const MAIN = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+if (MAIN) {
+  const argv = process.argv.slice(2);
+  const dirArg = argv.find((a) => a.startsWith('--dir='));
+  const dir = dirArg ? dirArg.slice(6) : DIR;
+  const { found, rows, problems, stray } = await scanDecor(dir);
+  if (argv.includes('--emit')) {
+    process.stdout.write(manifest(found));
+  } else {
+    const n = (s) => rows.filter((r) => r.source === s).length;
+    console.log(`  ${rows.length} elements: ${n('png')} delivered as PNGs in ${dir}/, ${n('paint')} redrawn in code, ` +
+      `${n('placeholder')} still on today's placeholder`);
+    let zone = '';
+    for (const r of rows) {
+      const tag = r.source === 'png' ? 'PNG' : r.source === 'paint' ? 'painted' : 'placeholder';
+      console.log(`  ${(r.zone === zone ? '' : r.zone).padEnd(10)} ${r.name.padEnd(17)} ${tag.padEnd(12)} ${r.file}${r.note ? '  ' + r.note : ''}`);
+      zone = r.zone;
+    }
+    for (const p of problems) console.log(`  PROBLEM  ${p}`);
+    for (const f of stray) console.log(`  IGNORED  ${f} -- not <ZONE>-<ELEMENT>.png for any element`);
+  }
+}
