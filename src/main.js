@@ -22,7 +22,7 @@ import { check as checkAwards } from './game/achievements.js';
 import { PX, VW, VH } from './game/constants.js';
 import { warmAtlases } from './render/font.js';
 import { prepaint, warmAhead } from './render/prepaint.js';
-import { warmMenu, watchCaps } from './render/menuskin.js';
+import { warmMenu, watchCaps, fillView } from './render/menuskin.js';
 import { warmComboTextAll } from './render/callouts.js';
 import { THEMES } from './game/themes.js';
 import { ReplayUI } from './ui/replays.js';
@@ -37,7 +37,10 @@ const input = new Input(window);
 adoptEarlierSaves();
 // The screen's context is made with LOW LATENCY as saved, so the canvas the page boots with is
 // the one it plays on; turning the option over later swaps in a new one (Renderer.setLowLatency).
-const renderer = new Renderer(canvas, { lowLatency: Settings.load().lowLatency });
+// Played by touch -- the Android build, or a phone's browser (ui/touch.js touchWanted). On a
+// phone the game fills the screen (renderer.js COVER_MAX), and LOW LATENCY is never used.
+const touchUI = touchWanted();
+const renderer = new Renderer(canvas, { lowLatency: Settings.load().lowLatency, cover: touchUI });
 const audio = new Audio();
 const game = new Game(input);
 
@@ -102,14 +105,12 @@ let settings = Settings.load();
 let optSel = 0;
 let optFrom = STATE.MENU;
 
-// Played by touch -- the Android build, or a phone's browser (ui/touch.js touchWanted). A phone's
-// defaults go into the save the first time (Settings.phoneDefaults: FRAME CAP 60).
-const touchUI = touchWanted();
+// A phone's defaults go into the save the first time (Settings.phoneDefaults: FRAME CAP 60).
 if (touchUI) Settings.phoneDefaults(settings);
 // The options' rows on this screen (Settings.optionsFor): TOUCH KEYS on a phone, LOW LATENCY
 // where the hint can work. `optSel` indexes this list, never OPTIONS itself.
 const LOW_LATENCY_WORKS = lowLatencyWorks();
-const optList = () => Settings.optionsFor({ touch: touchUI, lowLatency: LOW_LATENCY_WORKS });
+const optList = () => Settings.optionsFor({ touch: touchUI, lowLatency: LOW_LATENCY_WORKS && !touchUI });
 
 function applySettings() {
   renderer.applySettings(settings);
@@ -144,6 +145,15 @@ let quitting = false;
 let quitBlocked = false;
 let lastRender = performance.now();
 let uiT = 0;
+/**
+ * Whether the game has been drawn yet: two frames rendered (renderFrame). Until then a phone plays
+ * no music -- the Android app came up to a long black screen with the music already going ("the
+ * apk loading produces a long black screen and music plays before we see anything", 2026-09-29)
+ * -- and then the page tells the app its loading screen can go (gameShell.ready). A desktop, where
+ * the page is up in a moment, starts its music as it always has.
+ */
+let onScreen = false;
+let framesDrawn = 0;
 
 game.onDeath = (run, tierIndex) => {
   records = Stats.commit(all, run, tierIndex);
@@ -276,7 +286,8 @@ function toMenu() {
   audio.resumeCtx();
   audio.stopMusic();
   audio.resetKeys();
-  audio.crossTo('menu');
+  // Not at boot on a phone: the title's music waits for the title (onScreen).
+  if (!touchUI || onScreen) audio.crossTo('menu');
 }
 
 /**
@@ -338,6 +349,7 @@ function startTrackForState() {
   // meant that any state where a track had been named but never started -- music
   // switched off, a context that refused to resume -- blocked every later retry.
   if (!audio.ctx || !audio.musicOn || audio.voices) return;
+  if (touchUI && !onScreen) return;
   // Mid-climb, the theme and key of the stage the run has reached, not the first one.
   if (game.state === STATE.PLAYING || game.state === STATE.PAUSED) audio.startClimb(game.run.maxFloor);
   else if (game.state === STATE.DEAD || game.state === STATE.FALLING) {
@@ -657,6 +669,12 @@ function renderFrame(alpha, forcedDt) {
   drawFrame(alpha, forcedDt);
   if (touch) watchCaps(null);
   renderer.present();
+  if (!onScreen && ++framesDrawn >= 2) {
+    onScreen = true;
+    try { const b = document.getElementById('boot'); if (b) b.remove(); } catch (e) { /* no page */ }
+    try { if (window.gameShell && typeof window.gameShell.ready === 'function') window.gameShell.ready(); } catch (e) { /* no app */ }
+    startTrackForState();
+  }
 }
 
 function drawFrame(alpha, forcedDt) {
@@ -696,7 +714,7 @@ function drawFrame(alpha, forcedDt) {
         // Enough to keep the title readable, light enough that the bot is worth
         // watching -- which is the entire reason it is running.
         ctx.fillStyle = '#05030a9e';
-        ctx.fillRect(0, 0, VW, VH);
+        fillView(ctx);
         drawMenu(ctx, all, uiT, dt, true, soundNotice(), touchMenu());
         if (quitting) drawQuit(ctx, quitBlocked, uiT);
         ctx.globalAlpha = 1;
@@ -708,7 +726,7 @@ function drawFrame(alpha, forcedDt) {
       renderer.draw(demoGame, alpha, dt);
       ctx.setTransform(PX, 0, 0, PX, 0, 0);
       ctx.fillStyle = '#05030ac4';
-      ctx.fillRect(0, 0, VW, VH);
+      fillView(ctx);
       drawTutorial(ctx, tutPage, demoGame, uiT);
     } else if (game.state === STATE.OPTIONS) {
       ui();
@@ -811,6 +829,7 @@ const touch = touchUI ? new TouchControls({
   mode: () => (game.state === STATE.PLAYING && !replays.active ? 'run' : 'menu'),
   keys: touchKeys,
   size: () => settings.touchKeys,
+  move: () => settings.touchMove,
   targets: touchTargets,
   toView: (x, y) => renderer.toView(x, y),
 }) : null;
@@ -834,6 +853,11 @@ window.addEventListener('app:background', () => {
 });
 window.addEventListener('app:foreground', () => {
   if (game.state !== STATE.PAUSED) audio.resumeCtx();
+});
+// A phone turned upright in a run: the page says to turn it back (index.html #rotate), and the
+// run waits for it, paused, as it would for a blur.
+window.addEventListener('resize', () => {
+  if (touchUI && window.innerHeight > window.innerWidth && game.state === STATE.PLAYING) pauseGame();
 });
 
 const loop = new Loop({ update, render: renderFrame, onFrame: (dt) => { pad.poll(dt); if (touch) touch.frame(dt); replays.frame(dt); } });

@@ -32,13 +32,14 @@ Deck's included):
 | Stats · Help · Graphics | `Y` · `X` · `Back` |
 | Quit to the menu | `X` on the pause screen |
 
-On a **phone** the title screen is buttons: TAP TO CLIMB, and OPTIONS, STATS, REPLAYS and
-HELP under it. In a run the game draws its own keys on the screen: < and > to run (slide your
-thumb between them), a big SPACE to jump (hold it to chain) and ESC to pause; ^ and v where
-there is a list to move through; and along the top whichever keys the screen you are on names
--- S and Q on the pause, R and G on the scoreboard. **TOUCH KEYS** in the options makes the run
-keys bigger or smaller (80% to start). A phone draws at 60 frames a second, which is smooth on
-any phone; FRAME CAP in the options can take it higher.
+On a **phone**, held sideways (upright it asks you to turn it), the game fills the screen and
+the title screen is buttons: TAP TO CLIMB, and OPTIONS, STATS, REPLAYS and HELP under it. In a
+run a JOYSTICK at the bottom left runs him, a big SPACE jumps (hold it to chain) and ESC pauses;
+the same joystick moves through lists and changes options; and along the top are whichever keys
+the screen you are on names -- S and Q on the pause, R and G on the scoreboard. **MOVE WITH** in
+the options swaps the joystick for < and > buttons (slide your thumb between them), and **TOUCH
+KEYS** makes the run keys bigger or smaller (80% to start). A phone draws at 60 frames a second
+with the eye candy toned down; FRAME CAP and PARTICLES in the options can take it higher.
 
 `B` on the title screen quits, as `Esc` does. Pulling the pad out mid-run pauses it. The
 keys and the pad work side by side, and one controller that the system shows twice (as

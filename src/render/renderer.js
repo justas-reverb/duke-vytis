@@ -365,6 +365,33 @@ export function wingsFor(w, h) {
 /** How much of the frame's edge a margin is filled from [view units]: wall at every zoom, clear of the HUD. */
 export const WING_STRIP = 12;
 
+/**
+ * A PHONE'S screen is FILLED by the game, not by wall (the renderer's `cover`, main.js: when the
+ * page is played by touch). The wings above were the first answer to a 20:9 screen, and on a
+ * phone they were most of it: 60 units of mirrored wall a side on the Pixel 10, 105 on an iPhone
+ * in Safari, beside the frame's own walls -- "the side walls are unproportionally large to the
+ * main game ... most of the space should be filled by the game not by the side walls"
+ * (2026-09-29). So on a phone the WORLD is drawn bigger, by f = the screen's width over the
+ * frame's, so the frame's width spans the screen's and its top and bottom are cut; the HUD and
+ * every menu are drawn at their own size in the middle, the whole of them on screen. Three
+ * stages map the frame's backing pixels onto the wider canvas (setCover): the world's (f about
+ * the middle), the screen's (f across, the height as it is: bands along the edges) and the UI's
+ * (the frame as it is, in the middle). A screen wider than COVER_MAX [w/h; 2.4] is filled to
+ * that shape, with the page's dark either side: past it the cut would take a quarter of the
+ * shaft's height. The world's scale is then no whole number of pixels -- f is 1.2625 on the Pixel
+ * 10 -- and some of its pixels are a device pixel wider than others, which at a phone's 400-plus
+ * pixels to the inch nobody sees; the UI keeps whole ones.
+ */
+export const COVER_MAX = 2.4;
+
+/**
+ * A phone's speed streaks: half as many as the setting gives, at 60% (the renderer's `cover`).
+ * The user, 2026-09-29: "make the zooming through eye candy less apparent on phones" -- and they
+ * are most of the drawing at the moment a phone was slowest, a climb at full speed ("fps lag
+ * especially when we jump up and the screen scrolls").
+ */
+export const PHONE_STREAKS = { share: 0.5, strength: 0.6 };
+
 export function screenContext(canvas, lowLatency) {
   const ctx = canvas.getContext('2d', lowLatency ? { alpha: false, desynchronized: true } : { alpha: false });
   ctx.imageSmoothingEnabled = false;
@@ -372,12 +399,19 @@ export function screenContext(canvas, lowLatency) {
 }
 
 export class Renderer {
-  /** `opts.lowLatency`: create the screen's context with the hint (see screenContext). */
+  /**
+   * `opts.lowLatency`: create the screen's context with the hint (see screenContext).
+   * `opts.cover`: a phone's screen, filled by the game (COVER_MAX, setCover). A phone draws with
+   * no back buffer at all -- no LOW LATENCY, no wings -- so nothing is copied a second time.
+   */
   constructor(canvas, opts = {}) {
     this.canvas = canvas;
     canvas.width = SW;
     canvas.height = SH;
-    this.lowLatency = !!opts.lowLatency && lowLatencyWorks();
+    this.cover = !!opts.cover;
+    this.stages = null;          // the three stages when the game fills a wider screen (setCover)
+    this.stageM = null;          // the stage every setTransform on the screen is composed with now
+    this.lowLatency = !!opts.lowLatency && lowLatencyWorks() && !this.cover;
     // The screen's own context; `ctx`, what every frame is drawn into, is it -- or, under LOW
     // LATENCY, a back buffer the frame is put on the screen from whole (backBuffer, present).
     this.screenCtx = screenContext(canvas, this.lowLatency);
@@ -445,9 +479,12 @@ export class Renderer {
     const mode = this.settings ? this.settings.scaleMode : 'auto';
     const w = window.innerWidth;
     const h = window.innerHeight;
-    const wing = wingsFor(w, h);
-    if (wing !== this.wing) this.setWings(wing);
-    const sw = SW + 2 * this.wing * PX;
+    if (this.cover) this.setCover(w, h);
+    else {
+      const wing = wingsFor(w, h);
+      if (wing !== this.wing) this.setWings(wing);
+    }
+    const sw = this.canvas.width;
     const s = scaleFor(w, h, mode, sw);
     this.scale = s;
     this.canvas.style.width = Math.round(sw * s) + 'px';
@@ -489,7 +526,7 @@ export class Renderer {
    * The next frame draws into the new one; the frame between is the old one's last.
    */
   setLowLatency(on) {
-    on = !!on && lowLatencyWorks();
+    on = !!on && lowLatencyWorks() && !this.cover;
     if (on === this.lowLatency) return;
     const old = this.canvas;
     const doc = typeof document !== 'undefined' ? document : null;
@@ -547,13 +584,83 @@ export class Renderer {
    * after everything is drawn.
    */
   present() {
-    if (!this.back || !(this.lowLatency || this.wing)) return;
+    if (this.stages || !this.back || !(this.lowLatency || this.wing)) return;
     const s = this.screenCtx;
     s.setTransform(1, 0, 0, 1, this.wing * PX, 0);
     s.globalAlpha = 1;
     s.globalCompositeOperation = 'source-over';
     s.drawImage(this.back, 0, 0);
     if (this.wing) this.drawWings(s);
+  }
+
+  /**
+   * The canvas for a phone's screen of w x h CSS px (COVER_MAX): as wide as the screen's shape,
+   * to COVER_MAX, at the frame's height, and the three stages that fill it. `wing` is the UI's
+   * offset in view units, as it was the wings' width: what a finger's page pixels are measured
+   * from (toView). 16:9 or narrower -- a phone held upright -- is the frame as it is.
+   */
+  setCover(w, h) {
+    const A = w > 0 && h > 0 ? Math.min(w / h, COVER_MAX) : SW / SH;
+    // Even, so the UI's offset is a whole pixel; never narrower than the frame.
+    const cw = Math.max(SW, 2 * Math.round((SH * A) / 2));
+    if (cw === this.canvas.width && (this.stages || cw === SW)) return;
+    this.canvas.width = cw;
+    this.canvas.height = SH;
+    // A canvas resized is a context reset: smoothing back on, which would blur every blit.
+    this.screenCtx.imageSmoothingEnabled = false;
+    this.ctx = this.screenCtx;
+    const f = cw / SW, ox = (cw - SW) / 2;
+    this.wing = ox / PX;
+    this.stages = cw === SW ? null : {
+      world: [f, 0, 0, f, 0, (SH / 2) * (1 - f)],
+      screen: [f, 0, 0, 1, 0, 0],
+      ui: [1, 0, 0, 1, ox, 0],
+    };
+    if (this.stages) this.installStages(this.screenCtx);
+    this.stageM = this.stages ? this.stages.ui : null;
+  }
+
+  /**
+   * Every setTransform on the screen composed with the stage in use (useStage): the drawing code
+   * sets the frame's transforms as it always has, and the stage puts the frame where the phone's
+   * screen wants it. Also on the context: its own setTransform, unstaged (`rawTransform`), and a
+   * fill of the whole canvas (`fillWhole`, for canvases.js fillView: a wash over a menu covers
+   * the screen, not the frame in its middle). Nothing in src/ reads a transform back.
+   */
+  installStages(ctx) {
+    if (ctx.rawTransform) return;
+    const set = Object.getPrototypeOf(ctx).setTransform;
+    const R = this;
+    ctx.setTransform = function (a, b, c, d, e, f) {
+      const m = R.stageM;
+      if (!m || arguments.length < 6) return set.apply(this, arguments);
+      return set.call(this, m[0] * a + m[2] * b, m[1] * a + m[3] * b, m[0] * c + m[2] * d,
+        m[1] * c + m[3] * d, m[0] * e + m[2] * f + m[4], m[1] * e + m[3] * f + m[5]);
+    };
+    ctx.rawTransform = (a, b, c, d, e, f) => set.call(ctx, a, b, c, d, e, f);
+    ctx.fillWhole = () => {
+      ctx.save();
+      set.call(ctx, 1, 0, 0, 1, 0, 0);
+      ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+      ctx.restore();
+    };
+  }
+
+  /** The half-resolution buffer a phone's backdrop is drawn into (draw), made once: the frame's shape, opaque. */
+  halfBackdrop() {
+    if (!this.halfBg) {
+      const { c, g } = newCanvas(SW / 2, SH / 2, { alpha: false });
+      g.imageSmoothingEnabled = false;
+      c.layer = 'halfBackdrop';
+      this.halfBg = c;
+      this.halfBgCtx = g;
+    }
+    return this.halfBgCtx;
+  }
+
+  /** The stage the next transforms are set in: 'world', 'screen' or 'ui' (setCover). Nothing on a desktop. */
+  useStage(name) {
+    if (this.stages) this.stageM = this.stages[name];
   }
 
   /**
@@ -624,7 +731,13 @@ export class Renderer {
     // -viewLeft * k needs no rounding: at every quantised zoom it is already whole
     // (960, 720, 480, 240, 0). It is rounded anyway so that a future zoom step which is
     // not cannot reintroduce this silently.
-    ctx.setTransform(k, 0, 0, -k, Math.round(-viewLeft * k), Math.round(SH + this.cam * k));
+    const tx = Math.round(-viewLeft * k), ty = Math.round(SH + this.cam * k);
+    if (this.stages && ctx.rawTransform) {
+      // On a phone the world's stage, whichever stage is in use -- the race's ghost is drawn with
+      // the HUD, in the UI's -- and its translation rounded again, to the screen's own pixels.
+      const m = this.stages.world;
+      ctx.rawTransform(k * m[0], 0, 0, -k * m[3], Math.round(m[0] * tx + m[4]), Math.round(m[3] * ty + m[5]));
+    } else ctx.setTransform(k, 0, 0, -k, tx, ty);
     return { z, viewLeft, viewRight: viewLeft + VW / z };
   }
 
@@ -790,10 +903,23 @@ export class Renderer {
     const burn = this.burnAt(game, alpha);
     const line = burn < 0 ? -Infinity : this.fireLine(game);
 
+    // The world's stage for everything but the HUD and the calls (a phone's; see setCover).
+    this.useStage('world');
     ctx.setTransform(PX, 0, 0, PX, 0, 0);
     const zf = this.zoneFade(game, dt);
-    this.backdrop.draw(ctx, this.cam * (game.zoomView || game.zoom), zf.index, zf.theme,
-      zf.next, zf.blend);
+    if (this.stages) {
+      // A phone draws the backdrop at HALF the frame's resolution and puts it up in one blit
+      // (halfBackdrop): its tiles are painted at two backing pixels to the pixel, so at half the
+      // resolution nothing is lost, and the sky and its three layers -- four screens of pixels
+      // a frame, most of what a phone's GPU filled -- are a quarter of that plus the blit.
+      const g = this.halfBackdrop();
+      g.setTransform(PX / 2, 0, 0, PX / 2, 0, 0);
+      this.backdrop.draw(g, this.cam * (game.zoomView || game.zoom), zf.index, zf.theme, zf.next, zf.blend);
+      ctx.drawImage(this.halfBg, 0, 0, SW / 2, SH / 2, 0, 0, VW, VH);
+    } else {
+      this.backdrop.draw(ctx, this.cam * (game.zoomView || game.zoom), zf.index, zf.theme,
+        zf.next, zf.blend);
+    }
 
     const [sx, sy] = this.shakeOffset(game);
     const view = this.setWorldTransform(ctx, game);
@@ -832,8 +958,10 @@ export class Renderer {
 
     // The HUD goes in HERE, under the characters. Everything above this line is scenery.
     if (hud) {
+      this.useStage('ui');
       ctx.setTransform(PX, 0, 0, PX, sx * PX, sy * PX);
       hud();
+      this.useStage('world');
       this.setWorldTransform(ctx, game);
       ctx.translate(sx / (game.zoomView || game.zoom), -sy / (game.zoomView || game.zoom));
     }
@@ -858,15 +986,27 @@ export class Renderer {
     // here too, and the shake offset with it -- this one carries arguments, so a search
     // for the plain identity transform walks straight past it, and everything below
     // drew at half size in the top-left quarter of the screen.
+    // On a phone (setCover) each in its stage: the calls stand on the screen's bottom edge and the
+    // badge beside the HUD's callout, at the UI's size; a floater rides the world; the danger
+    // band runs along the bottom of what is on screen.
+    this.useStage('ui');
     ctx.setTransform(PX, 0, 0, PX, sx * PX, sy * PX);
     this.drawCompanionCalls(ctx, game);
+    this.useStage('world');
+    ctx.setTransform(PX, 0, 0, PX, sx * PX, sy * PX);
     this.drawFloaters(ctx, game);
+    this.useStage('screen');
+    ctx.setTransform(PX, 0, 0, PX, sx * PX, sy * PX);
     this.drawDangerBand(ctx, game);
     // The prestige badge beside a callout from the second lap on: the one piece of the
     // callout drawn out here rather than in the HUD, after the Duke, the companions, their
     // calls and the floaters, so none of them can cover it (callouts.js drawCalloutBadge).
+    this.useStage('ui');
+    ctx.setTransform(PX, 0, 0, PX, sx * PX, sy * PX);
     drawCalloutBadge(ctx, game);
 
+    // The whole screen's: the fall's dark, the vignette, the flash, the scanlines.
+    this.useStage('screen');
     ctx.setTransform(PX, 0, 0, PX, 0, 0);
     if (game.state === 'falling') this.drawFallOverlay(ctx, game);
     this.drawVignette(ctx, game);
@@ -880,6 +1020,9 @@ export class Renderer {
       ctx.globalAlpha = 1;
     }
     if (this.scanlines) this.drawScanlines(ctx);
+    // What main.js draws next is the UI: the menus, the boards, the pause.
+    this.useStage('ui');
+    ctx.setTransform(PX, 0, 0, PX, 0, 0);
   }
 
   /**
@@ -1633,7 +1776,9 @@ export class Renderer {
     const budget = this.settings
       ? (this.settings.streaks ? STREAK_BUDGET[this.settings.particles] : 0)
       : 110;
-    drawStreaks(ctx, this.streaks, intensity, dt, theme, budget, nextTheme, zoom, pace);
+    const p = this.cover ? PHONE_STREAKS : null;
+    drawStreaks(ctx, this.streaks, intensity, dt, theme, p ? budget * p.share : budget, nextTheme, zoom, pace,
+      p ? p.strength : 1);
   }
 
   // The floaters -- BOUNCE, TWICE, THRICE!, CHASE n, the +score of a banked chain -- are the
@@ -1726,7 +1871,7 @@ export class Renderer {
     ctx.fillRect(0, 0, VW, 4);
     ctx.fillRect(0, VH - 4, VW, 4);
     // With side margins the side bands belong at the canvas's edges, not the frame's (drawWings).
-    if (this.wing) this.edgeTint = k * 0.45;
+    if (this.wing && !this.stages) this.edgeTint = k * 0.45;
     else {
       ctx.fillRect(0, 0, 4, VH);
       ctx.fillRect(VW - 4, 0, 4, VH);

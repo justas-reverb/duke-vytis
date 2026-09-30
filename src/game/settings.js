@@ -169,7 +169,16 @@ export const DEFAULTS = {
   lowLatency: true,
   // See TOUCH_KEY_SIZES: how big a phone's on-screen keys are, a fraction of the first cut's.
   touchKeys: 0.8,
+  // See TOUCH_MOVES: a phone moves him with a joystick, or with the < > keys.
+  touchMove: 'stick',
 };
+
+/**
+ * MOVE WITH, a phone's: 'stick', a joystick where < > stood (the default), or 'buttons', the keys
+ * (ui/touch.js). The user, 2026-09-29: "add joystick controlls on the movement and add swapping to
+ * it in the options on mobile".
+ */
+export const TOUCH_MOVES = ['stick', 'buttons'];
 
 /**
  * TOUCH KEYS, a phone's on-screen keys' size [fraction of the first cut's; 0.8 by default]. The
@@ -215,6 +224,7 @@ export function load() {
     if (!DIFFICULTY_LEVELS.includes(out.difficulty)) out.difficulty = DEFAULTS.difficulty;
     if (!GRAVITIES.includes(out.gravity)) out.gravity = DEFAULTS.gravity;
     if (!TOUCH_KEY_SIZES.includes(out.touchKeys)) out.touchKeys = DEFAULTS.touchKeys;
+    if (!TOUCH_MOVES.includes(out.touchMove)) out.touchMove = DEFAULTS.touchMove;
     for (const k of ['scanlines', 'streaks', 'shake', 'trails', 'showFps', 'music', 'guideSeen', 'lowLatency']) {
       out[k] = !!out[k];
     }
@@ -293,6 +303,8 @@ export const OPTIONS = [
   { key: 'touchKeys', label: 'TOUCH KEYS', values: TOUCH_KEY_SIZES, touch: true,
     show: Object.fromEntries(TOUCH_KEY_SIZES.map((v) => [String(v), Math.round(v * 100) + '%'])),
     note: 'HOW BIG THE KEYS ON THE SCREEN ARE' },
+  { key: 'touchMove', label: 'MOVE WITH', values: TOUCH_MOVES, touch: true,
+    show: { stick: 'JOYSTICK', buttons: 'BUTTONS' }, note: 'A JOYSTICK, OR THE LEFT AND RIGHT BUTTONS' },
 ];
 
 /**
@@ -315,21 +327,30 @@ export function optionsFor({ touch = false, lowLatency = true } = {}) {
 const shownRows = new Map();
 
 /**
- * A phone's defaults, once, when the page is first played by touch (main.js): FRAME CAP 60. A
- * phone's panel refreshes 120 times a second and more, 8 ms a frame, and a frame the phone does
- * not finish in time stays on screen twice as long -- the unevenness the user saw on a Pixel 10
- * as "steadily choppy" (2026-09-29). At 60, drawn every second refresh exactly (core/loop.js),
- * every frame has twice the time and is shown as long as the last. Marked done in the save
- * (TOUCH_V), so a player who then chooses UNCAPPED or 120 keeps it.
+ * A phone's defaults, once each, when the page is played by touch (main.js), marked done in the
+ * save (TOUCH_V) so a player's own choice afterwards stands:
+ *   1. FRAME CAP 60. A phone's panel refreshes 120 times a second and more, 8 ms a frame, and a
+ *      frame the phone does not finish in time stays on screen twice as long -- the unevenness the
+ *      user saw on a Pixel 10 as "steadily choppy" (2026-09-29). At 60, drawn every second
+ *      refresh exactly (core/loop.js), every frame has twice the time.
+ *   2. PARTICLES MEDIUM, where they were HIGH, and no SCANLINES: "some fps lag especially when we
+ *      jump up and the screen scrolls ... make the zooming through eye candy less apparent on
+ *      phones" (2026-09-29). Particles and the speed streaks (their budget follows PARTICLES) are
+ *      most of a fast climb's drawing, and the scanlines a whole-screen blit every frame.
  */
 export function phoneDefaults(settings) {
-  if (settings.touchV >= TOUCH_V) return settings;
-  settings.fpsCap = 60;
+  const v = settings.touchV || 0;
+  if (v >= TOUCH_V) return settings;
+  if (v < 1) settings.fpsCap = 60;
+  if (v < 2) {
+    if (settings.particles === 'high') settings.particles = 'medium';
+    settings.scanlines = false;
+  }
   settings.touchV = TOUCH_V;
   save(settings);
   return settings;
 }
-const TOUCH_V = 1;
+const TOUCH_V = 2;
 
 /** Rows that run something instead of holding a value. */
 export function actionFor(key) {

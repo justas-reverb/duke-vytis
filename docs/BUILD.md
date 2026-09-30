@@ -53,7 +53,9 @@ imports `src/` by relative paths, which work from the `/duke-vytis/` subpath as 
 itch.io's (the walk above proves that for the package; the repository holds the same files).
 `.nojekyll` at the root keeps Pages from running the files through Jekyll, which skips
 underscore names and chokes on anything in the docs that looks like a Liquid tag. A phone's
-browser reports a coarse pointer, so the touch keys come up (`touchWanted`). `index.html`'s
+browser reports a coarse pointer, so the touch keys come up (`touchWanted`) and the game fills
+the screen (`renderer.js COVER_MAX`); held upright the page says TURN YOUR PHONE SIDEWAYS
+(`#rotate`), since a browser cannot be held to landscape. `index.html`'s
 head carries a web app manifest (`manifest.webmanifest`) and Apple's home-screen tags, so the
 page saved to a home screen opens as an app of its own, full screen and without the browser's
 bars; the desktop build and the Android app ignore them, but both package the files so the
@@ -219,8 +221,8 @@ only honest way to tell is to start it and look. The unpackaged equivalent,
 
 ## The installer, `dist/`, and the shortcut
 
-`npm run dist` writes two things to `dist/`: `Duke Vytis 1.0.1 portable.exe`, one file you
-can move and double-click, and `Duke Vytis 1.0.1 setup.exe`, a per-user installer that
+`npm run dist` writes two things to `dist/`: `Duke Vytis <version> portable.exe`, one file you
+can move and double-click, and `Duke Vytis <version> setup.exe`, a per-user installer that
 asks for a directory and creates the Desktop and Start-menu shortcuts (`/S` runs it
 silently).
 
@@ -283,8 +285,11 @@ edge to edge: the window runs under the camera's cut-out (`LAYOUT_IN_DISPLAY_CUT
 side -- the game's wings fill the width past 16:9 ([ARCHITECTURE.md](ARCHITECTURE.md) *It has
 to fill a screen*), and the on-screen keys keep clear of the camera's hole, which the Activity
 hands the page (`gameShell.cutouts()`, and an `app:cutouts` event when the phone turns over;
-`viewport-fit=cover` in `index.html` for a browser's insets); package `lt.dukevytis.tower`,
-Android 7 (API 24) and up.
+`viewport-fit=cover` in `index.html` for a browser's insets). From the first moment the app shows
+a loading screen of its own over the page -- the game's shield and a spinner (`makeLoading`) --
+until the page has drawn its first frames and calls `gameShell.ready()`, and the page holds its
+music until then: the app used to come up to a long black screen with the music already going.
+Package `lt.dukevytis.tower`, Android 7 (API 24) and up.
 
 **Built with the SDK's own tools, no Gradle**: aapt2 (the manifest and the launcher icon, made
 from `assets/icon.png` as the desktop icon is), javac against the platform's `android.jar`, d8,

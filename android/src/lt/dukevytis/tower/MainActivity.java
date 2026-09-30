@@ -2,7 +2,9 @@ package lt.dukevytis.tower;
 
 import android.app.Activity;
 import android.content.pm.ApplicationInfo;
+import android.graphics.BitmapFactory;
 import android.graphics.Rect;
+import android.graphics.drawable.BitmapDrawable;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -22,7 +24,11 @@ import android.webkit.WebResourceResponse;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.view.Gravity;
 import android.widget.FrameLayout;
+import android.widget.ImageView;
+import android.widget.LinearLayout;
+import android.widget.ProgressBar;
 import android.window.OnBackInvokedCallback;
 import android.window.OnBackInvokedDispatcher;
 
@@ -54,6 +60,15 @@ public class MainActivity extends Activity {
 
   private WebView web;
   private FrameLayout root;
+  /**
+   * The loading screen, over the page until the game's first frames are drawn (the page calls
+   * gameShell.ready): the game's shield and a spinner on its dark. Under it the page boots -- the
+   * WebView starting, 149 modules served from the APK, the painting ahead -- which on a phone was
+   * a long black screen with the music already playing ("the apk loading produces a long black
+   * screen and music plays before we see anything", 2026-09-29). The page holds its music until
+   * the same moment (main.js onScreen).
+   */
+  private View loading;
   /** The camera's cut-outs, [[l,t,r,b],...] in the window's pixels: the page's gameShell.cutouts(). */
   private volatile String cutouts = "[]";
 
@@ -107,11 +122,22 @@ public class MainActivity extends Activity {
           cutouts = now;
           js("window.dispatchEvent(new CustomEvent('app:cutouts',{detail:" + now + "}))");
         }
+        // The system's bars back for good -- not a swipe's, which the insets do not count -- are
+        // put away again. On the emulator one start in three kept the status bar and the
+        // navigation handle over the game from its first frame (2026-09-29): a hide asked for
+        // before the system's splash had gone did not hold.
+        if (Build.VERSION.SDK_INT >= 30
+            && insets.isVisible(WindowInsets.Type.statusBars() | WindowInsets.Type.navigationBars())) {
+          root.post(new Runnable() {
+            @Override public void run() { immersive(); }
+          });
+        }
         return insets;
       }
     });
     setContentView(root);
     makeWebView();
+    makeLoading();
     if (Build.VERSION.SDK_INT >= 33) {
       getOnBackInvokedDispatcher().registerOnBackInvokedCallback(
           OnBackInvokedDispatcher.PRIORITY_DEFAULT,
@@ -147,6 +173,46 @@ public class MainActivity extends Activity {
     root.addView(web, new FrameLayout.LayoutParams(
         ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
     web.loadUrl(HOME);
+  }
+
+  private void makeLoading() {
+    LinearLayout box = new LinearLayout(this);
+    box.setOrientation(LinearLayout.VERTICAL);
+    box.setGravity(Gravity.CENTER);
+    box.setBackgroundColor(0xff05030a);
+    float dp = getResources().getDisplayMetrics().density;
+    try (InputStream in = getAssets().open("www/assets/icon.png")) {
+      ImageView icon = new ImageView(this);
+      BitmapDrawable art = new BitmapDrawable(getResources(), BitmapFactory.decodeStream(in));
+      art.setFilterBitmap(false);   // pixel art: no smoothing
+      icon.setImageDrawable(art);
+      box.addView(icon, new LinearLayout.LayoutParams((int) (112 * dp), (int) (112 * dp)));
+    } catch (IOException e) {
+      Log.w(TAG, "no icon for the loading screen: " + e);
+    }
+    ProgressBar spin = new ProgressBar(this);
+    spin.setIndeterminate(true);
+    LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams((int) (36 * dp), (int) (36 * dp));
+    lp.topMargin = (int) (24 * dp);
+    box.addView(spin, lp);
+    loading = box;
+    root.addView(loading, new FrameLayout.LayoutParams(
+        ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+    // Never for ever: a page that never says it is drawn gets its screen back after 30 s.
+    root.postDelayed(new Runnable() {
+      @Override public void run() { hideLoading(); }
+    }, 30000);
+  }
+
+  private void hideLoading() {
+    final View v = loading;
+    if (v == null) return;
+    loading = null;
+    v.animate().alpha(0f).setDuration(250).withEndAction(new Runnable() {
+      @Override public void run() { root.removeView(v); }
+    }).start();
+    immersive();
+    Log.i(TAG, "the game is on the screen");
   }
 
   /** The phone's Back is the game's Escape: pause, back out of a screen, quit from the title. */
@@ -198,6 +264,7 @@ public class MainActivity extends Activity {
   @SuppressWarnings("deprecation")
   private void immersive() {
     if (Build.VERSION.SDK_INT >= 30) {
+      getWindow().setDecorFitsSystemWindows(false);
       WindowInsetsController c = getWindow().getInsetsController();
       if (c != null) {
         c.hide(WindowInsets.Type.systemBars());
@@ -216,6 +283,12 @@ public class MainActivity extends Activity {
     @JavascriptInterface public boolean isFullscreen() { return true; }
     /** The camera's cut-outs, [[l,t,r,b],...] in the window's pixels (the page divides by its ratio). */
     @JavascriptInterface public String cutouts() { return cutouts; }
+    /** The game's first frames are drawn: the loading screen goes (makeLoading). */
+    @JavascriptInterface public void ready() {
+      runOnUiThread(new Runnable() {
+        @Override public void run() { hideLoading(); }
+      });
+    }
     @JavascriptInterface public void toggleFullscreen() { /* always fullscreen */ }
     @JavascriptInterface public void quit() {
       runOnUiThread(new Runnable() {

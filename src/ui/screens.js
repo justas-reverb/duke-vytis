@@ -24,7 +24,7 @@ import {
 import { replayWarmList } from '../render/replayskin.js';
 import { IMPACT_FADE } from '../game/constants.js';
 import { newCanvas, touchCanvas } from '../render/canvases.js';
-import { mHints, mPromptOn, menuWarmNow } from '../render/menuskin.js';
+import { mHints, mPromptOn, menuWarmNow, fillView } from '../render/menuskin.js';
 
 export const PAGES = ['RECORDS', 'AVERAGES', 'THE TOWER', 'AWARDS'];
 
@@ -375,7 +375,7 @@ export function drawMenu(ctx, all, t, frameT, liveBackdrop = false, soundBlocked
   warmMenu();
   if (!liveBackdrop) {
     ctx.fillStyle = MENU_BG;
-    ctx.fillRect(0, 0, VW, VH);
+    fillView(ctx);
     // Drifting starfield, for the case where there is no demo running behind: stars of one
     // and two ART pixels now, where they were four-pixel squares, the only coarse thing
     // left on the screen.
@@ -622,7 +622,7 @@ export function optionsPanelEnd(rows = optionsFor()) { return 50 + OPTION_ROW * 
  */
 export function drawOptions(ctx, settings, sel, t, loop, rows = optionsFor(), touch = false) {
   ctx.fillStyle = MENU_BG;
-  ctx.fillRect(0, 0, VW, VH);
+  fillView(ctx);
   mLine(ctx, 'gold', 'OPTIONS', VW / 2, 8, 2, 'center');
 
   // The line that actually answers "why is it a tiny screen".
@@ -731,7 +731,7 @@ export function drawAttractPrompt(ctx, t, k, touch = false) {
 
 export function drawQuit(ctx, blocked, t) {
   ctx.fillStyle = '#05030ae0';
-  ctx.fillRect(0, 0, VW, VH);
+  fillView(ctx);
   // Each on a panel: under the wash the title screen and the attract run still move at an
   // eighth of their strength, and the refusal's last line lay right across the washed prompt.
   if (!blocked) {
@@ -751,7 +751,7 @@ export function drawQuit(ctx, blocked, t) {
 /** Frozen mid-run. The run is intact; nothing here restarts anything. */
 export function drawPaused(ctx, game, t) {
   ctx.fillStyle = '#05030ad0';
-  ctx.fillRect(0, 0, VW, VH);
+  fillView(ctx);
 
   // A whole art pixel at a time, as the title bobs.
   const bob = Math.round(Math.sin(t * 2) * 2 * PX) / PX;
@@ -786,7 +786,7 @@ const HELP_BACK_TOUCH = 'TAP TO GO BACK';
 /** The help. `touch`: a phone's -- its controls are the buttons on the screen, not keys. */
 export function drawHelp(ctx, t, touch = false) {
   ctx.fillStyle = '#000000cc';
-  ctx.fillRect(0, 0, VW, VH);
+  fillView(ctx);
   mPanel(ctx, HELP_PANEL.x, HELP_PANEL.y, HELP_PANEL.w, HELP_PANEL.h);
   mLine(ctx, 'gold', 'HOW TO CLIMB', VW / 2, 16, 2, 'center');
 
@@ -1105,7 +1105,7 @@ export function drawGameOver(ctx, game, all, records, unlocked, t) {
   const skin = boardSkinFor(game);
   const hex2 = (v) => Math.round(v * 255).toString(16).padStart(2, '0');
   ctx.fillStyle = skin.spec.well + hex2(BOARD_VEIL);
-  ctx.fillRect(0, 0, VW, VH);
+  fillView(ctx);
 
   // The panel is left out when the run set nothing, and the board closes up round the gap it
   // leaves, rather than showing a hole between the numbers and the prompt.
@@ -1186,7 +1186,7 @@ function mRow(ctx, label, value, x, y, w, role = 'text') {
 
 export function drawStats(ctx, all, page, t, resetArmed = false) {
   ctx.fillStyle = MENU_BG;
-  ctx.fillRect(0, 0, VW, VH);
+  fillView(ctx);
   const d = derived(all);
 
   mLine(ctx, 'gold', 'STATISTICS', VW / 2, 6, 2, 'center');
@@ -1214,7 +1214,7 @@ export function drawStats(ctx, all, page, t, resetArmed = false) {
   // is the one control in the game that destroys something the player earned.
   if (resetArmed) {
     ctx.fillStyle = '#05030ad8';
-    ctx.fillRect(0, 0, VW, VH);
+    fillView(ctx);
     mPanel(ctx, 56, 78, 368, 114, 'RESET EVERYTHING', 'crimson');
     mText(ctx, 'text', 'THIS CLEARS ALL ' + ACHIEVEMENTS.length + ' AWARDS, EVERY LIFETIME', VW / 2, 100, 'center');
     mText(ctx, 'text', 'TOTAL, YOUR RECENT RUNS AND YOUR TOP TEN.', VW / 2, 111, 'center');

@@ -6,13 +6,14 @@
 //                                [--keep]             leave the emulator running, for a look
 //                                [--serial=emulator-N] use one already running; neither boot nor kill it
 //
-// What it proves, in order: the app starts and the page boots to the title, which has no fixed
-// keys and draws its own buttons, and the title is ON THE SCREEN -- a screenshot whose game area
+// What it proves, in order: the app starts to its own loading screen, never a black one; the
+// page boots to the title, which has no fixed keys and draws its own buttons, and the title is ON
+// THE SCREEN, with the loading screen gone once the page said it was drawn -- a screenshot whose game area
 // is black fails, however well the page runs underneath (the first run here had the game running
 // and nothing shown); the page fills the screen edge to edge, the camera's cut-out included; a
 // tap on OPTIONS opens the options with TOUCH KEYS first, and Back leaves them; a tap on TAP TO
 // CLIMB starts a run (through the first-run guide, which a fresh install shows first) with its
-// keys up; > held runs him right; the phone's Back pauses the run; the app sent to the background
+// keys up -- the joystick, SPACE and ESC; the joystick pushed right runs him right; the phone's Back pauses the run; the app sent to the background
 // and brought back stays paused with the music held; Back twice more leaves the pause and pauses
 // again; and the page logged no error. It exits 0 on all of it.
 //
@@ -185,6 +186,19 @@ async function main() {
     adb('install', '-r', APK);
     adb('logcat', '-c');
     adb('shell', 'am', 'start', '-n', `${APP}/.MainActivity`);
+    // The app's first frame of its own, not the system's splash (drawn upright, over the
+    // launcher): the first screenshot held sideways. The loading screen's shield in its middle,
+    // or already the title -- never the black a WebView shows before its page has painted.
+    let early = null;
+    const tFirst = Date.now();
+    for (;;) {
+      const png = adbBuf('exec-out', 'screencap', '-p');
+      if (png.readUInt32BE(16) > png.readUInt32BE(20) || Date.now() - tFirst > 20000) { early = png; break; }
+      await sleep(300);
+    }
+    if (SHOTS) { fs.mkdirSync(String(SHOTS), { recursive: true }); fs.writeFileSync(path.join(String(SHOTS), '0-loading.png'), early); }
+    const earlyLit = lit(early);
+    ok(earlyLit > 0.02, `the app's first frame sideways, ${((Date.now() - tFirst) / 1000).toFixed(1)} s in, is not black: ${(earlyLit * 100).toFixed(1)}% of its middle lit (the loading screen's shield)`);
     dt = await devtools();
     const V = (expr) => dt.evaluate(`(() => { try { return ${expr}; } catch (e) { return 'ERR ' + e.message; } })()`);
     let state = null;
@@ -207,6 +221,13 @@ async function main() {
     while (Date.now() - tShow < 60000 && (shown = lit(adbBuf('exec-out', 'screencap', '-p'))) <= 0.15) await sleep(1000);
     shot('1-title');
     ok(shown > 0.15, `the title is on the screen after ${((Date.now() - tShow) / 1000).toFixed(0)} s: ${(shown * 100).toFixed(0)}% of the middle lit (a black game area is under 5%)`);
+    ok(/the game is on the screen/.test(adb('logcat', '-d', '-s', 'DukeVytis:I')), 'the loading screen went when the page said the game was drawn (gameShell.ready)');
+    // Full screen: the system's bars hidden once the game is up (they came back over it on one
+    // start in three before immersive() was held to).
+    await sleep(1500);
+    const bars = adb('shell', 'dumpsys', 'window').split(/\r?\n/)
+      .filter((l) => /InsetsSource id=\S+ type=(statusBars|navigationBars) /.test(l)).map((l) => /visible=(\w+)/.exec(l)[1]);
+    ok(bars.length > 0 && bars.every((v) => v === 'false'), `the system's bars are hidden over the game: ${bars.join(' ') || 'none found'}`);
     const cut = /cut-out insets (\d+),(\d+),(\d+),(\d+)/.exec(adb('logcat', '-d', '-s', 'DukeVytis:I'));
     if (cut) console.log(`  (the cut-out's insets, l t r b: ${cut.slice(1).join(' ')} px; nothing padded)`);
     // Where a key is on the SCREEN: the page's CSS pixels times its ratio (the page is the screen).
@@ -252,7 +273,7 @@ async function main() {
     }
     ok(run === 'playing', `a tap on TAP TO CLIMB (${cl.join(',')}) started a run${guide ? ', through the first-run guide' : ''} (${run})`);
     const keys = await V('VYTIS.touch.buttons().map((b) => b.id).join(" ")');
-    ok(keys === 'left right jump esc', `the run's keys are up: ${keys}`);
+    ok(keys === 'jump esc stick', `the run's keys are up, the joystick in < >'s place: ${keys}`);
     // The camera's hole, as the app told the page (gameShell.cutouts): no key over it.
     const holes = await V('JSON.stringify(VYTIS.touch.holes)');
     const over = await V(`(() => { const hs = VYTIS.touch.holes || []; return VYTIS.touch.buttons().filter((b) => hs.some((h) => b.x < h.x1 && h.x0 < b.x + b.w && b.y < h.y1 && h.y0 < b.y + b.h)).map((b) => b.id); })()`);
@@ -264,12 +285,14 @@ async function main() {
     const tRate = Date.now();
     while (Date.now() - tRate < 30000 && (fps = await rate()) < 15) await sleep(500);
     console.log(`  (the run draws ${fps} frames a second here, ${((Date.now() - tRate) / 1000).toFixed(0)} s after it started)`);
-    // > held a second and a half: he runs right.
+    // The joystick pushed right for a second and a half: he runs right. Android's swipe moves the
+    // finger from the stick's middle to 0.7 of its radius over the time, and lifts there.
     const x0 = await V('VYTIS.game.player.x');
-    const rt = await at('right');
-    adb('shell', 'input', 'swipe', String(rt[0]), String(rt[1]), String(rt[0]), String(rt[1]), '1500');
+    const sb = await V('(() => { const b = VYTIS.touch.buttons().find((x) => x.id === "stick"); return b ? [b.x + b.w / 2, b.y + b.h / 2, b.w / 2] : null; })()');
+    const [scx, scy, sr] = sb.map((v) => v * page.dpr);
+    adb('shell', 'input', 'swipe', String(Math.round(scx)), String(Math.round(scy)), String(Math.round(scx + 0.7 * sr)), String(Math.round(scy)), '1500');
     const x1 = await V('VYTIS.game.player.x');
-    ok(typeof x0 === 'number' && x1 > x0 + 20, `> held 1.5 s ran him right: x ${Number(x0).toFixed(0)} -> ${Number(x1).toFixed(0)}`);
+    ok(typeof x0 === 'number' && x1 > x0 + 20, `the joystick pushed right 1.5 s ran him right: x ${Number(x0).toFixed(0)} -> ${Number(x1).toFixed(0)}`);
     shot('2-run');
     const runShown = lit(adbBuf('exec-out', 'screencap', '-p'));
     ok(runShown > 0.15, `the run is on the screen: ${(runShown * 100).toFixed(0)}% of the middle lit`);

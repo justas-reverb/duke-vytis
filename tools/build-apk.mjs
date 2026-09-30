@@ -140,7 +140,19 @@ function writeResources(res) {
     + '  <background android:drawable="@color/icon_back" />\n  <foreground android:drawable="@mipmap/ic_launcher_foreground" />\n</adaptive-icon>\n');
   fs.mkdirSync(path.join(res, 'values'), { recursive: true });
   fs.writeFileSync(path.join(res, 'values', 'colors.xml'),
-    `<?xml version="1.0" encoding="utf-8"?>\n<resources>\n  <color name="icon_back">#${BG.map((v) => v.toString(16).padStart(2, '0')).join('')}</color>\n</resources>\n`);
+    `<?xml version="1.0" encoding="utf-8"?>\n<resources>\n  <color name="icon_back">#${BG.map((v) => v.toString(16).padStart(2, '0')).join('')}</color>\n`
+    + '  <color name="night">#05030a</color>\n</resources>\n');
+  // The app's theme: the game's night behind everything from the first moment -- the window, and
+  // from Android 12 the system's own splash (its shield on that dark, then the app's loading
+  // screen on the same, then the game), where the platform's grey showed before.
+  const style = (splash) => '<?xml version="1.0" encoding="utf-8"?>\n<resources>\n'
+    + '  <style name="Game" parent="@android:style/Theme.Material.NoActionBar.Fullscreen">\n'
+    + '    <item name="android:windowBackground">@color/night</item>\n'
+    + (splash ? '    <item name="android:windowSplashScreenBackground">@color/night</item>\n' : '')
+    + '  </style>\n</resources>\n';
+  fs.writeFileSync(path.join(res, 'values', 'styles.xml'), style(false));
+  fs.mkdirSync(path.join(res, 'values-v31'), { recursive: true });
+  fs.writeFileSync(path.join(res, 'values-v31', 'styles.xml'), style(true));
 }
 
 // --- the zip: aapt2's APK, with the code and the game added -----------------------------------

@@ -12,7 +12,10 @@
 // has none of them -- its own buttons are drawn on it, below -- and ^ v only where a cursor
 // moves; the user, 2026-09-29: "up and down arrows appear on the main menu when they do nothing
 // there"):
-//   < >      the arrows, held -- a thumb slides from one to the other without lifting
+//   < >      the arrows, held -- a thumb slides from one to the other without lifting; or, as
+//            the player chooses (MOVE WITH in the options, the joystick by default), a JOYSTICK
+//            in their place, which holds the arrow it is pushed toward (steer; the user,
+//            2026-09-29: "add joystick controlls on the movement and add swapping to it")
 //   SPACE    the jump, held as long as the finger is down (HOLD TO CHAIN); start, choose, skip
 //   ESC      the pause in a run, back everywhere else
 //   ^ v      the menus' up and down
@@ -42,6 +45,15 @@ const ESC_W = 13;                         // ESC's width [u]: its word and a mar
 const KEY_GAP = 2;                        // between the top row's keys [u]
 const SLOP = 2;                           // how far outside a button a finger still presses it [u]
 const MIN_APART = 6;                      // the least room between < > and SPACE, however big [u]
+const STICK = 42;                         // the joystick's base, bottom left: its diameter [u]
+/**
+ * The joystick's lines, as fractions of its base's radius: pushed past ENGAGE it holds the arrow
+ * that way, and lets it go only back under RELEASE -- a gap, so a thumb resting on the line does
+ * not stutter the key on and off. A finger grabs it anywhere within GRAB radii of its middle.
+ */
+const STICK_ENGAGE = 0.3, STICK_RELEASE = 0.2, STICK_GRAB = 1.35;
+/** The fixed buttons a joystick stands in for, and which of its axes each needs. */
+const STICK_AXIS = { left: 'x', right: 'x', up: 'y', down: 'y' };
 
 /**
  * How long a key stays in the top row after a frame last drew its keycap [s; 0.25]. A hint that
@@ -58,8 +70,9 @@ const FIXED = [
   { id: 'down', code: 'ArrowDown', label: '▼', cls: 'arrow', menu: true },
   { id: 'jump', code: 'Space', label: 'SPACE', sub: 'JUMP', cls: 'big round' },
   { id: 'esc', code: 'Escape', label: 'ESC' },
+  { id: 'stick', code: null, label: '', cls: 'stick round' },
 ];
-const FIXED_CODES = new Set(FIXED.map((b) => b.code));
+const FIXED_CODES = new Set(FIXED.map((b) => b.code).filter(Boolean));
 
 /** The keys a held finger repeats outside a run, as a held key repeats: the menus' cursor. */
 const REPEATS = new Set(['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown']);
@@ -140,6 +153,10 @@ export function touchLayout(vw, vh, strip = [], size = 1, inset = null, holes = 
   const ax = Math.max(L + ((2 * MOVE.w + MOVE.gap - ARROW.w) / 2) * u, leftAt(upY, downY + ARROW.h * u));
   r.down = { x: ax, y: downY, w: ARROW.w * u, h: ARROW.h * u };
   r.up = { x: ax, y: upY, w: ARROW.w * u, h: ARROW.h * u };
+  // The joystick, when the player moves with it: round, standing where < > stand, its bottom on
+  // theirs, sized by TOUCH KEYS as they are.
+  const sd = STICK * u, stickY = vh - m - sd;
+  r.stick = { x: leftAt(stickY, vh - m), y: stickY, w: sd, h: sd };
   const jumpY = vh - m - JUMP * u;
   r.jump = { x: rightAt(jumpY, vh - m) - JUMP * u, y: jumpY, w: JUMP * u, h: JUMP * u };
   r.esc = { x: leftAt(m, m + KEY_H * k), y: m, w: ESC_W * k, h: KEY_H * k };
@@ -187,6 +204,10 @@ const CSS = `
 #touch .tb.arrow{font-size:7vmin}
 #touch .tb.on{background:rgba(232,200,112,.45);color:#fff}
 #touch .tb small{font-size:2.8vmin;opacity:.8;margin-top:.8vmin}
+#touch .tb.stick{background:rgba(12,8,22,.3)}
+#touch .tb.stick .knob{width:46%;height:46%;border-radius:50%;box-sizing:border-box;
+  background:rgba(232,200,112,.5);border:.5vmin solid rgba(255,240,200,.75)}
+#touch .tb.stick.on .knob{background:rgba(232,200,112,.8)}
 `;
 
 export class TouchControls {
@@ -202,8 +223,10 @@ export class TouchControls {
    * @param opts.targets () => what the screen draws to be tapped, [{ x, y, w, h, code }] in
    *                     view units
    * @param opts.toView  (x, y) => [vx, vy]: a finger's CSS pixels in view units
+   * @param opts.move    () => 'stick' or 'buttons': how the player moves (MOVE WITH)
    */
-  constructor({ target, win, doc, mode = () => 'menu', keys = null, size = () => 1, targets = () => [], toView = null } = {}) {
+  constructor({ target, win, doc, mode = () => 'menu', keys = null, size = () => 1, targets = () => [], toView = null,
+    move = () => 'buttons' } = {}) {
     this.target = target || globalThis.window;
     this.win = win || globalThis.window;
     this.doc = doc || globalThis.document;
@@ -214,6 +237,9 @@ export class TouchControls {
     this.toView = toView;
     this.inset = { l: 0, r: 0, t: 0, b: 0 };
     this.holes = null;           // the camera's cut-outs from the Android app, CSS px (readHoles)
+    this.move = move;
+    this.stickAxes = null;       // the joystick's axes on this screen, { x, y }, or null: no joystick
+    this.knob = null;            // where a thumb holds the joystick's knob, { dx, dy } CSS px from its middle
     this.pressedCode = null;     // the tappable thing a finger is on now, for the screen to light
     this.seen = new Set();       // the legends the last frame drew as keycaps (main.js watchCaps)
     this.lastSeen = new Map();   // legend -> the clock when a frame last drew it
@@ -294,14 +320,26 @@ export class TouchControls {
   /** Lay the buttons out again if the viewport, the mode or the top row changed. */
   relayout() {
     const vw = (this.win && this.win.innerWidth) || 0, vh = (this.win && this.win.innerHeight) || 0;
-    const shown = this.keys();
+    let shown = this.keys();
     const size = this.size() || 1;
+    const move = this.move();
     const strip = this.strip();
     const i = this.inset, holes = this.holes;
     const hs = holes ? holes.map((h) => `${h.x0},${h.y0},${h.x1},${h.y1}`).join(';') : '-';
-    const sig = `${vw}x${vh}|${shown.join(',')}|${size}|${i.l},${i.r}|${hs}|${strip.join(',')}`;
+    const sig = `${vw}x${vh}|${shown.join(',')}|${move}|${size}|${i.l},${i.r}|${hs}|${strip.join(',')}`;
     if (sig === this.sig) return;
     this.sig = sig;
+    // Moving with the joystick, it stands in for whichever arrows the screen has: < > in a run,
+    // and ^ v too where a cursor moves.
+    const axes = move === 'stick' && shown.some((id) => STICK_AXIS[id])
+      ? { x: shown.some((id) => STICK_AXIS[id] === 'x'), y: shown.some((id) => STICK_AXIS[id] === 'y') } : null;
+    if (axes) shown = [...shown.filter((id) => !STICK_AXIS[id]), 'stick'];
+    // A screen whose axes changed under a held thumb: its key is let go, and taken again as it moves.
+    if (JSON.stringify(axes) !== JSON.stringify(this.stickAxes)) {
+      for (const f of this.fingers.values()) if (f.stick && f.code) { this.release(f.code); f.code = null; }
+      if (!axes) this.knob = null;
+    }
+    this.stickAxes = axes;
     const R = touchLayout(vw, vh, strip, size, i, holes);
     const list = [];
     for (const b of FIXED) if (shown.includes(b.id)) list.push({ ...b, ...R[b.id] });
@@ -321,9 +359,12 @@ export class TouchControls {
     const s = SLOP * Math.min(this.win.innerWidth, this.win.innerHeight) / 100;
     let best = null, bestD = Infinity;
     for (const b of this.list) {
-      if (x < b.x - s || x > b.x + b.w + s || y < b.y - s || y > b.y + b.h + s) continue;
       const dx = x - (b.x + b.w / 2), dy = y - (b.y + b.h / 2);
       const d = dx * dx + dy * dy;
+      if (b.id === 'stick') {
+        const g = (b.w / 2) * STICK_GRAB;
+        if (d > g * g) continue;
+      } else if (x < b.x - s || x > b.x + b.w + s || y < b.y - s || y > b.y + b.h + s) continue;
       if (d < bestD) { bestD = d; best = b; }
     }
     return best;
@@ -349,6 +390,12 @@ export class TouchControls {
     if (type === 'down') {
       this.relayout();
       const b = this.hit(x, y);
+      if (b && b.id === 'stick') {
+        const f = { id: 'stick', code: null, stick: true };
+        this.fingers.set(id, f);
+        this.steer(f, x, y);
+        return true;
+      }
       const t = b ? null : this.targetAt(x, y);
       this.fingers.set(id, b ? { id: b.id, code: b.code } : { id: null, code: null, tap: t ? t.code : null });
       if (b) this.press(b.code);
@@ -357,6 +404,15 @@ export class TouchControls {
     }
     const f = this.fingers.get(id);
     if (!f) return false;
+    if (f.stick) {
+      if (type === 'move') { this.steer(f, x, y); return true; }
+      this.fingers.delete(id);
+      if (f.code) this.release(f.code);
+      f.code = null;
+      this.knob = null;
+      this.dirty = true;
+      return true;
+    }
     if (f.tap) {
       const t = this.targetAt(x, y);
       const on = !!t && t.code === f.tap;
@@ -385,6 +441,38 @@ export class TouchControls {
     return !!f.id;
   }
 
+  /**
+   * A thumb on the joystick at (x, y): the knob follows it, held inside the base, and the arrow it
+   * points past STICK_ENGAGE is held (let go under STICK_RELEASE) -- one arrow at a time, along the
+   * axis it leans on more of those the screen has (a menu's cursor and its value are different
+   * keys, and a diagonal would move both), in a run left and right alone.
+   */
+  steer(f, x, y) {
+    const b = this.list.find((e) => e.id === 'stick');
+    if (!b) return;
+    const r = b.w / 2;
+    let dx = x - (b.x + r), dy = y - (b.y + r);
+    const d = Math.sqrt(dx * dx + dy * dy);
+    if (d > r) { dx *= r / d; dy *= r / d; }
+    this.knob = { dx, dy };
+    this.dirty = true;
+    const ax = this.stickAxes || { x: true, y: false };
+    const nx = dx / r, ny = dy / r;
+    const line = (code) => (f.code === code ? STICK_RELEASE : STICK_ENGAGE);
+    let code = null;
+    if (ax.x && (!ax.y || Math.abs(nx) >= Math.abs(ny))) {
+      if (nx < -line('ArrowLeft')) code = 'ArrowLeft';
+      else if (nx > line('ArrowRight')) code = 'ArrowRight';
+    } else if (ax.y) {
+      if (ny < -line('ArrowUp')) code = 'ArrowUp';
+      else if (ny > line('ArrowDown')) code = 'ArrowDown';
+    }
+    if (code === f.code) return;
+    if (f.code) this.release(f.code);
+    f.code = code;
+    if (code) this.press(code);
+  }
+
   press(code) {
     const n = (this.held.get(code) || 0) + 1;
     this.held.set(code, n);
@@ -406,6 +494,8 @@ export class TouchControls {
   /** Every finger lets go. */
   releaseAll() {
     this.pressedCode = null;
+    this.knob = null;
+    this.dirty = true;
     this.fingers.clear();
     for (const code of [...this.held.keys()]) { this.held.set(code, 1); this.release(code); }
   }
@@ -479,7 +569,12 @@ export class TouchControls {
       if (!el) {
         el = d.createElement('div');
         el.className = 'tb' + (b.cls ? ' ' + b.cls : '');
-        el.textContent = b.label;
+        if (b.id === 'stick') {
+          const k = d.createElement('div');
+          k.className = 'knob';
+          el.appendChild(k);
+          this.knobEl = k;
+        } else el.textContent = b.label;
         if (b.sub) { const s = d.createElement('small'); s.textContent = b.sub; el.appendChild(s); }
         this.root.appendChild(el);
         this.els.set(b.id, el);
@@ -487,7 +582,11 @@ export class TouchControls {
       const st = el.style;
       st.left = px(b.x); st.top = px(b.y); st.width = px(b.w); st.height = px(b.h);
       st.display = '';
-      el.classList.toggle('on', this.held.get(b.code) > 0);
+      if (b.id === 'stick') {
+        const k = this.knob;
+        if (this.knobEl) this.knobEl.style.transform = k ? `translate(${px(k.dx)}, ${px(k.dy)})` : '';
+        el.classList.toggle('on', !!k);
+      } else el.classList.toggle('on', this.held.get(b.code) > 0);
       shown.add(b.id);
     }
     for (const [id, el] of this.els) if (!shown.has(id)) el.style.display = 'none';

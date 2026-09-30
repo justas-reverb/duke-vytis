@@ -63,7 +63,7 @@
 // warmBoardLettering, through menuWarmNow), and every canvas here is brought up as it is
 // painted (canvasOf).
 
-import { PX, VW } from '../game/constants.js';
+import { PX, VW, VH } from '../game/constants.js';
 import { GLYPHS, CELL, textWidth, tracking } from './font.js';
 import { Pix, pixToCanvas, mix } from './decorpaint/util.js';
 import { layoutWord, dropShadow, halo, distOut, rgba } from './titlepaint/util.js';
@@ -1084,6 +1084,17 @@ export function mPanel(ctx, x, y, w, h, title = '', role = 'gold', style = 'pane
   drawArt(ctx, a, x + 3, y - 8);
   report('plate', 'tab:' + title, x + 3, y - 8, x + 3 + tw + 10, y + 7, { chamfer: 3 });
   mText(ctx, role, title, x + 8, y - 4, 'left');
+}
+
+/**
+ * Fill the whole screen with the current fill and alpha: a wash over a menu, a menu's own dark.
+ * On a desktop that is the frame, 480 x 270; on a phone whose game fills a wider screen
+ * (renderer.js COVER_MAX) it is the whole canvas, not the frame drawn in its middle -- a wash
+ * that stopped at the frame's edges left the game bright down both sides.
+ */
+export function fillView(ctx) {
+  if (ctx.fillWhole) ctx.fillWhole();
+  else ctx.fillRect(0, 0, VW, VH);
 }
 
 /** A plate of a style at a view box, no title (the title screen's lower plaque). */

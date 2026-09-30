@@ -37,8 +37,20 @@
 //      nothing, and the button lights while the finger is on it (a pixel of the drawn frame);
 //      HELP opens the help and a tap anywhere goes back; with the attract view up a tap only
 //      wakes the title, even on TAP TO CLIMB's place.
-//   J. The screen, filled: a 20:9 phone's canvas is the whole viewport, the frame in the middle
-//      and a mirror of its edges in the wings either side (render/renderer.js wingsFor).
+//   J. The screen, filled by the GAME (render/renderer.js COVER_MAX): a 20:9 phone's canvas is
+//      the whole viewport, the world drawn across all of it and the UI at its own size in the
+//      middle -- TAP TO CLIMB where the frame puts it -- and a wash over the whole screen, not
+//      the frame; a desktop's wide window keeps its mirrored wings. The Android app's holes are
+//      followed as the phone turns.
+//   K. The joystick (MOVE WITH, the default; the buttons are what A-J test): chosen in the
+//      options, it stands in for the arrows each screen has; pushed past its line it holds the
+//      arrow that way and lets go only well back (no stutter on the line); in a run left and
+//      right alone, in a menu one axis at a time; the knob stays in its base; lifting lets go.
+//      A fresh save moves with it.
+//   L. Before the game is drawn a phone plays no music, and the Android app's loading screen is
+//      told to go once it is (gameShell.ready, once); a phone's backdrop is drawn at half the
+//      resolution and loses no pixel for it; a phone's defaults: FRAME CAP 60, PARTICLES MEDIUM,
+//      no SCANLINES.
 //
 //   node tools/test-touch.mjs              the checks (a few seconds)
 //   node tools/test-touch.mjs --mutant=N   patches a copy of src/ and must FAIL
@@ -116,13 +128,41 @@ const MUTANTS = {
   // D: the first cut's size by default.
   'size-default-100': [['src/game/settings.js', '  touchKeys: 0.8,', '  touchKeys: 1,']],
   // D: the options' rows as a desktop's: TOUCH KEYS not first (not there at all) and LOW LATENCY in.
-  'desktop-rows': [['src/main.js', 'const optList = () => Settings.optionsFor({ touch: touchUI, lowLatency: LOW_LATENCY_WORKS });', 'const optList = () => Settings.optionsFor({});']],
+  'desktop-rows': [['src/main.js', 'const optList = () => Settings.optionsFor({ touch: touchUI, lowLatency: LOW_LATENCY_WORKS && !touchUI });', 'const optList = () => Settings.optionsFor({});']],
   // D: LOW LATENCY offered in the WebView, where it does nothing.
-  'webview-row': [['src/main.js', 'const optList = () => Settings.optionsFor({ touch: touchUI, lowLatency: LOW_LATENCY_WORKS });', 'const optList = () => Settings.optionsFor({ touch: touchUI, lowLatency: true });']],
+  'webview-row': [['src/main.js', 'const optList = () => Settings.optionsFor({ touch: touchUI, lowLatency: LOW_LATENCY_WORKS && !touchUI });', 'const optList = () => Settings.optionsFor({ touch: touchUI, lowLatency: true });']],
   // D: a phone left uncapped.
   'phone-uncapped': [['src/main.js', 'if (touchUI) Settings.phoneDefaults(settings);\n', '']],
-  // J: no wings, the 16:9 frame with bars either side.
-  'no-wings': [['src/render/renderer.js', '    const wing = wingsFor(w, h);', '    const wing = 0;']],
+  // J: a desktop's wide window with no wings, the 16:9 frame with bars either side.
+  'no-wings': [['src/render/renderer.js', '      const wing = wingsFor(w, h);', '      const wing = 0;']],
+  // J: a phone's screen with wings again, not filled by the game.
+  'cover-off': [['src/render/renderer.js', '    this.cover = !!opts.cover;', '    this.cover = false;']],
+  // J: the menus drawn at the world's size, over the phone's wider screen.
+  'ui-in-world': [['src/render/renderer.js', "    // What main.js draws next is the UI: the menus, the boards, the pause.\n    this.useStage('ui');", "    // What main.js draws next is the UI: the menus, the boards, the pause.\n    this.useStage('world');"]],
+  // J: a wash over the frame in the middle, the game bright down both sides.
+  'wash-frame-only': [['src/render/menuskin.js', '  if (ctx.fillWhole) ctx.fillWhole();\n  else ctx.fillRect(0, 0, VW, VH);', '  ctx.fillRect(0, 0, VW, VH);']],
+  // K: no gap between the joystick's lines: a thumb on the line stutters the key.
+  'stick-no-gap': [['src/ui/touch.js', '    const line = (code) => (f.code === code ? STICK_RELEASE : STICK_ENGAGE);', '    const line = () => STICK_ENGAGE;']],
+  // K: up and down on the joystick in a run.
+  'stick-y-in-run': [['src/ui/touch.js', '    const ax = this.stickAxes || { x: true, y: false };', '    const ax = { x: true, y: true };']],
+  // K: left and right always win, so a menu's cursor never moves on the joystick.
+  'stick-x-always': [['src/ui/touch.js', '    if (ax.x && (!ax.y || Math.abs(nx) >= Math.abs(ny))) {', '    if (ax.x) {']],
+  // K: the joystick's key kept when the thumb lifts.
+  'stick-stays': [['src/ui/touch.js', "      if (type === 'move') { this.steer(f, x, y); return true; }\n      this.fingers.delete(id);\n      if (f.code) this.release(f.code);", "      if (type === 'move') { this.steer(f, x, y); return true; }\n      this.fingers.delete(id);"]],
+  // K: the joystick never put up.
+  'stick-never': [['src/ui/touch.js', "    const axes = move === 'stick' && shown.some((id) => STICK_AXIS[id])", "    const axes = false && shown.some((id) => STICK_AXIS[id])"]],
+  // L: the title's music started at boot, as it was.
+  'boot-music': [['src/main.js', "  if (!touchUI || onScreen) audio.crossTo('menu');", "  audio.crossTo('menu');"]],
+  // L: the music up before the game is drawn, by the sound's retry.
+  'music-first': [['src/main.js', '  if (touchUI && !onScreen) return;\n', '']],
+  // L: the app's loading screen never told to go.
+  'never-ready': [['src/main.js', "    try { if (window.gameShell && typeof window.gameShell.ready === 'function') window.gameShell.ready(); } catch (e) { /* no app */ }\n", '']],
+  // L: a phone's backdrop at full resolution, four screens of pixels a frame.
+  'full-backdrop': [['src/render/renderer.js', '    if (this.stages) {\n      // A phone draws the backdrop at HALF', '    if (false) {\n      // A phone draws the backdrop at HALF']],
+  // L: the phone's second defaults never made.
+  'phone-v1': [['src/game/settings.js', 'const TOUCH_V = 2;', 'const TOUCH_V = 1;']],
+  // K: a fresh save moving with the buttons.
+  'stick-not-default': [['src/game/settings.js', "  touchMove: 'stick',", "  touchMove: 'buttons',"]],
   // J: wings made, never painted.
   'wings-unpainted': [['src/render/renderer.js', '    if (this.wing) this.drawWings(s);', '']],
   // caught by C (a held arrow repeats in a run)
@@ -224,9 +264,18 @@ const WEBVIEW_UA = 'Mozilla/5.0 (Linux; Android 16; sdk_gphone64_x86_64 Build/BE
 globalThis.navigator.userAgent = WEBVIEW_UA;
 page.win.AudioContext = StubContext;
 globalThis.fetch = () => Promise.reject(new Error('no network in a test'));
-localStorage.setItem('dukevytis.settings.v2', JSON.stringify({ guideSeen: true, music: true, speedV: 3 }));
+// MOVE WITH the buttons for A-J; K chooses the joystick in the options, and checks the default.
+localStorage.setItem('dukevytis.settings.v2', JSON.stringify({ guideSeen: true, music: true, speedV: 3, touchMove: 'buttons' }));
+// The Android app's shell, as its JavaScript interface presents it (MainActivity.Shell): L counts
+// the page's ready().
+const SHELL = { readies: 0 };
+page.win.gameShell = { ready() { SHELL.readies++; }, cutouts: () => '[]', isFullscreen: () => true, toggleFullscreen() {}, quit() {} };
 const u = (p) => pathToFileURL(path.join(ROOT, p)).href;
 const V = await bootMain(u('src/main.js'));
+// Before anything is drawn (L): no music, and the loading screen not yet told to go -- after the
+// sound's one-second retry (main.js's setInterval) has had its chance, still nothing drawn.
+await new Promise((r) => setTimeout(r, 1300));
+const AT_BOOT = { track: V.audio.track, voices: !!V.audio.voices, readies: SHELL.readies };
 const { STATE } = await import(u('src/game/game.js'));
 const Touch = await import(u('src/ui/touch.js'));
 const { REPEAT_DELAY, REPEAT_RATE } = await import(u('src/core/gamepad.js'));
@@ -325,8 +374,15 @@ const tickT = () => { tick(); clock += 1 / FPS; };
   const problems = [];
   for (const size of [0.6, 0.8, 1, 1.3]) {
     for (const [vw, vh] of [[915, 412], [800, 360], [640, 360], [412, 915], [1280, 800]]) {
-      const L = Object.entries(Touch.touchLayout(vw, vh, strip, size));
-      for (const [id, r] of L) {
+      // The joystick and the arrows are never up together (MOVE WITH): each set is checked alone.
+      const all = Object.entries(Touch.touchLayout(vw, vh, strip, size));
+      const L = all.filter(([id]) => id !== 'stick');
+      const LS = all.filter(([id]) => !['left', 'right', 'up', 'down'].includes(id));
+      for (let i = 0; i < LS.length; i++) for (let j = i + 1; j < LS.length; j++) {
+        const [a, p] = LS[i], [b, q] = LS[j];
+        if ((a === 'stick' || b === 'stick') && p.x < q.x + q.w && q.x < p.x + p.w && p.y < q.y + q.h && q.y < p.y + p.h) problems.push(`${size} ${vw}x${vh} ${a} over ${b}`);
+      }
+      for (const [id, r] of all) {
         if (r.x < 0 || r.y < 0 || r.x + r.w > vw || r.y + r.h > vh) problems.push(`${size} ${vw}x${vh} ${id} outside`);
         const fixed = id === 'esc' || id.startsWith('key:');
         if ((size === 1 || fixed) && Math.min(r.w, r.h) < 40) problems.push(`${size} ${vw}x${vh} ${id} ${Math.min(r.w, r.h).toFixed(0)} px`);
@@ -538,15 +594,15 @@ const tickT = () => { tick(); clock += 1 / FPS; };
   const back = V.settings().touchKeys, w80b = btn('jump').w;
   ok(Math.abs(w80 - 112.064) < 0.01 && s90 === 0.9 && Math.abs(w90 - 126.072) < 0.01 && back === 0.8 && Math.abs(w80b - 112.064) < 0.01,
     `D. TOUCH KEYS, the first row: SPACE ${w80.toFixed(2)} px at the default, ${w90.toFixed(2)} after > (TOUCH KEYS ${s90}), ${w80b.toFixed(2)} after < (${back}); want 112.06 at 80%, 126.07 at 90%`);
-  // No LOW LATENCY in the WebView: five rows down from TOUCH KEYS -- JUMP SPEED, PLATFORMS,
-  // DIFFICULTY, GRAVITY -- is SCALING, and > there changes the scaling, not the hint.
+  // No LOW LATENCY on a phone: six rows down from TOUCH KEYS -- MOVE WITH, JUMP SPEED,
+  // PLATFORMS, DIFFICULTY, GRAVITY -- is SCALING, and > there changes the scaling, not the hint.
   const was = { scale: V.settings().scaleMode, low: V.settings().lowLatency };
-  for (let i = 0; i < 5; i++) tapBtn('down');
+  for (let i = 0; i < 6; i++) tapBtn('down');
   tapBtn('right');
   const now = { scale: V.settings().scaleMode, low: V.settings().lowLatency };
   tapBtn('left');
   ok(now.scale !== was.scale && now.low === was.low && V.settings().scaleMode === was.scale,
-    `D. the WebView's options: > five rows under TOUCH KEYS changed SCALING ${was.scale} -> ${now.scale} and LOW LATENCY ${was.low} -> ${now.low} (want SCALING, LOW LATENCY not offered)`);
+    `D. the phone's options: > six rows under TOUCH KEYS changed SCALING ${was.scale} -> ${now.scale} and LOW LATENCY ${was.low} -> ${now.low} (want SCALING, LOW LATENCY not offered)`);
   heard.length = 0;
   clock = 0;
   const f = down('down');
@@ -730,34 +786,75 @@ function menuT() { return target('Space') || { x: 122, y: 146, w: 244, h: 42 }; 
 function near2(a, b) { return typeof a === 'number' && Math.abs(a - b) < 0.01; }
 
 // =============================================================================================
-// J. The screen, filled: a 20:9 phone's canvas is the viewport, the frame mirrored into its wings.
+// J. The screen, filled by the game on a phone; a desktop's wide window keeps its wings.
 // =============================================================================================
 {
   const R = V.renderer, C = R.canvas;
   const Rm = await import(u('src/render/renderer.js'));
-  // The side margins, worked out [view units a side]: (w/h x 270 - 480) / 2, rounded up to cover
-  // the edge. 915 x 412: 59.6 -> 60; 2400 x 1080 (the emulator's Pixel 6): 60; 16:9: 0; 4:3: 0;
-  // 3440 x 1440 (an ultrawide): 82.5 -> 83; 32:9 at most WING_MAX, 200.
+  // On this 915 x 412 phone [CSS px] the canvas is the screen's shape at the frame's height:
+  // 1080 x 915/412 = 1199.3, to the nearest even, 2398 px wide -- the world drawn 2398/1920 =
+  // 1.249 times its frame's size, the UI 239 px (59.75 units) in from the left at its own.
+  const cw0 = parseFloat(C.style.width), ch0 = parseFloat(C.style.height);
+  ok(C.width === 2398 && C.height === 1080 && R.wing === 59.75 && !!R.stages
+    && Math.abs(cw0 - page.win.innerWidth) <= 1 && Math.abs(ch0 - page.win.innerHeight) <= 1,
+    `J. a 915 x 412 phone's canvas is ${C.width} x ${C.height}, the UI ${R.wing} units in, shown at ${cw0} x ${ch0} (want 2398 x 1080, 59.75, the whole viewport)`);
+  // Where the drawn UI is: TAP TO CLIMB's crimson face 10 units inside its left end [UI units:
+  // it spans 122-358 across, 150-184 down], and the dark of the title 3 units outside it. Drawn
+  // at the world's size the face would reach out over that dark.
+  if (game.state !== STATE.MENU) { tapBtn('esc'); ticks(0.3); }
+  if (game.state === STATE.PAUSED) { tapBtn('key:Q'); ticks(0.3); }
+  settle();
+  V.renderFrame(1, 1 / FPS);
+  const px = (x, y) => { const i = (Math.round(y) * C.width + Math.round(x)) * 4; return [C.data[i], C.data[i + 1], C.data[i + 2]]; };
+  const at = (ux, uy) => px(239 + ux * 4, uy * 4);
+  const face = at(132, 167), outside = at(119, 167);
+  const crimson = (c) => c[0] > c[1] + 40 && c[0] > c[2] + 20;
+  ok(game.state === STATE.MENU && crimson(face) && !crimson(outside) && outside[0] < 120,
+    `J. TAP TO CLIMB where the UI puts it: its face rgb(${face}) at 132, rgb(${outside}) 3 units outside it (want crimson inside, the dark title outside)`);
+  // A run: the world across the whole canvas (its edges lit), and the pause's wash over all of
+  // it, the edges too.
+  tapOn('Space');
+  ticks(0.6);
+  V.renderFrame(1, 1 / FPS);
+  const edgeLuma = () => {
+    let s = 0, n = 0;
+    for (let y = 300; y < 780; y += 8) for (const x of [4, 60, C.width - 61, C.width - 5]) {
+      const c = px(x, y);
+      s += 0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2];
+      n++;
+    }
+    return s / n;
+  };
+  const lit = edgeLuma();
+  tapBtn('esc');
+  ticks(0.2);
+  V.renderFrame(1, 1 / FPS);
+  const dim = edgeLuma();
+  ok(game.state === STATE.PAUSED && lit > 12 && dim < lit * 0.5,
+    `J. the world to the canvas's edges (mean luma ${lit.toFixed(1)} there in a run) and the pause's wash over them (${dim.toFixed(1)} paused; want under half)`);
+  tapBtn('esc');
+  ticks(0.2);
+  // A desktop's window as wide: the 16:9 frame in the middle and its edges mirrored into wings
+  // [view units a side]: (w/h x 270 - 480) / 2, rounded up to cover the edge. 915 x 412: 59.6 ->
+  // 60; 2400 x 1080: 60; 16:9: 0; 4:3: 0; 3440 x 1440 (an ultrawide): 82.5 -> 83; 32:9 at most
+  // WING_MAX, 200. A renderer of its own, not a phone's.
   const want = [[915, 412, 60], [2400, 1080, 60], [1920, 1080, 0], [1024, 768, 0], [3440, 1440, 83], [5120, 1440, 200]];
   const wrong = want.filter(([w, h, n]) => Rm.wingsFor(w, h) !== n).map(([w, h, n]) => `${w}x${h}: ${Rm.wingsFor(w, h)} (want ${n})`);
   ok(!wrong.length, `J. wingsFor: ${wrong.join('; ')}`);
-  const cw = parseFloat(C.style.width), ch = parseFloat(C.style.height);
-  ok(R.wing === 60 && C.width === 1920 + 2 * 60 * 4 && Math.abs(cw - page.win.innerWidth) <= 1 && Math.abs(ch - page.win.innerHeight) <= 1,
-    `J. on a 915 x 412 phone the canvas is ${C.width} x ${C.height} shown at ${cw} x ${ch} with ${R.wing} units of wings (want 2400 wide, the whole viewport, 60 a side)`);
-  // In a run: each wing's first strip is the frame's edge mirrored, pixel for pixel, on a row
-  // through the middle of the screen.
-  tapOn('Space');
-  ticks(0.5);
-  V.renderFrame(1, 1 / FPS);
-  const W = R.wing * 4, Y = 540, d = C.data;
-  const at = (x) => { const i = (Y * C.width + x) * 4; return (d[i] << 16) | (d[i + 1] << 8) | d[i + 2]; };
-  let mism = 0, lit = 0;
+  const D = new Rm.Renderer(document.createElement('canvas'), {});
+  D.draw(game, 1, 1 / FPS);
+  D.present();
+  const DC = D.canvas, dd = DC.data;
+  const W = D.wing * 4, Y = 540;
+  const dat = (x) => { const i = (Y * DC.width + x) * 4; return (dd[i] << 16) | (dd[i + 1] << 8) | dd[i + 2]; };
+  let mism = 0, wlit = 0;
   for (let i = 0; i < 48; i++) {
-    if (at(W - 1 - i) !== at(W + i)) mism++;
-    if (at(C.width - W + i) !== at(C.width - W - 1 - i)) mism++;
-    if (at(W - 1 - i) !== 0) lit++;
+    if (dat(W - 1 - i) !== dat(W + i)) mism++;
+    if (dat(DC.width - W + i) !== dat(DC.width - W - 1 - i)) mism++;
+    if (dat(W - 1 - i) !== 0) wlit++;
   }
-  ok(mism === 0 && lit > 24, `J. the wings on row ${Y}: ${mism} of 96 pixels are not the frame's edge mirrored, ${lit} of 48 on the left not black (want 0, and a picture)`);
+  ok(D.wing === 60 && DC.width === 2400 && mism === 0 && wlit > 24,
+    `J. a desktop's 915 x 412 window: ${D.wing} units of wings, ${mism} of 96 pixels on row ${Y} not the frame's edge mirrored, ${wlit} of 48 lit (want 60, 0, and a picture)`);
   // The Android app turned over: its 'app:cutouts' says where the hole is now [the screen's
   // pixels; this page's ratio is 1]. In the top left corner ESC stands clear of it; in the middle
   // of the edge, and with none, back at the margin.
@@ -766,7 +863,132 @@ function near2(a, b) { return typeof a === 'number' && Math.abs(a - b) < 0.01; }
   const [e1, e2, e3] = [cut([[0, 0, 60, 60]]), cut([[0, 190, 38, 222]]), cut([])];
   ok(near2(e1, 68.24) && near2(e2, 12.36) && near2(e3, 12.36),
     `J. the app's holes as the phone turns: ESC at ${e1 && e1.toFixed(2)} by a corner hole, ${e2 && e2.toFixed(2)} by a middle one, ${e3 && e3.toFixed(2)} with none (want 68.24, 12.36, 12.36)`);
-  note(`J. a 20:9 phone's screen is filled: ${C.width} x ${C.height} across ${cw} x ${ch} CSS px, the frame's edges mirrored ${R.wing} units out either side`);
+  note(`J. a 20:9 phone's screen filled by the game: ${C.width} x ${C.height}, the world ${(C.width / 1920).toFixed(3)} times its frame, the UI at its own size in the middle, washes over all of it; a desktop's wide window keeps its wings`);
+}
+
+// =============================================================================================
+// K. The joystick: chosen in the options, in the arrows' place, with a gap between its lines.
+// =============================================================================================
+{
+  const S = await import(u('src/game/settings.js'));
+  ok(S.DEFAULTS.touchMove === 'stick', `K. a fresh save moves with ${S.DEFAULTS.touchMove} (want the joystick)`);
+  const inp = V.input;
+  // To the options from wherever J left the run.
+  if (game.state === STATE.PLAYING) { tapBtn('esc'); ticks(0.2); }
+  if (game.state === STATE.PAUSED) { tapBtn('key:Q'); ticks(0.3); }
+  settle();
+  tapOn('KeyO');
+  ok(game.state === STATE.OPTIONS && ids().includes('left'), `K. the options with the buttons (${game.state}: ${ids().join(' ')})`);
+  // MOVE WITH is the second row: v, then > turns the buttons into the joystick.
+  tapBtn('down');
+  tapBtn('right');
+  tick();
+  const optKeys = ids().join(' ');
+  ok(V.settings().touchMove === 'stick' && optKeys === 'jump esc stick',
+    `K. MOVE WITH chosen as ${V.settings().touchMove}: the options' keys are [${optKeys}] (want the joystick in place of ^ v < >: jump esc stick)`);
+  const st = () => btn('stick');
+  const mid = () => { const b = st(); return [b.x + b.w / 2, b.y + b.h / 2, b.w / 2]; };
+  // A thumb on the joystick [its base's radius r]: pushed down 0.6 r, the options' cursor moves
+  // down, repeating; pushed right and a little down (0.5 r, 0.4 r), only the value changes.
+  heard.length = 0;
+  let [cx, cy, r] = mid();
+  const sf = ++fingerId;
+  T.pointer('down', sf, cx, cy);
+  T.pointer('move', sf, cx, cy + 0.6 * r);
+  for (let i = 0; i < 40; i++) tickT();
+  const downs = heard.filter((e) => e.code === 'ArrowDown').length;
+  const before = heard.length;
+  T.pointer('move', sf, cx + 0.5 * r, cy + 0.4 * r);
+  tick();
+  const diag = heard.slice(before).map((e) => e.code);
+  T.pointer('up', sf, cx, cy);
+  tick();
+  ok(downs >= 3 && diag.join(' ') === 'ArrowRight' && !inp.axis,
+    `K. the joystick in the options: pushed down it sent ${downs} ArrowDowns (want a held key's repeats); right-and-down then sent [${diag.join(' ')}] (want ArrowRight alone); lifted, nothing held`);
+  // A run: the joystick in < >'s place.
+  tapBtn('esc');
+  settle();
+  tapOn('Space');
+  ticks(0.6);
+  const runKeys = ids().join(' ');
+  ok(game.state === STATE.PLAYING && runKeys === 'jump esc stick', `K. a run's keys are [${runKeys}] (want jump esc stick: no < >)`);
+  [cx, cy, r] = mid();
+  heard.length = 0;
+  const g = ++fingerId;
+  const at = (fx, fy) => { T.pointer('move', g, cx + fx * r, cy + fy * r); tick(); return inp.axis; };
+  T.pointer('down', g, cx, cy);
+  tick();
+  const a0 = inp.axis;
+  const a1 = at(0.25, 0);      // under the line from rest: nothing
+  const a2 = at(0.5, 0);       // past it: right
+  const a3 = at(0.25, 0);      // back under it but over the let-go line: still right
+  const a4 = at(0.15, 0);      // under the let-go line: nothing
+  const a5 = at(-0.5, 0);      // left
+  const a6 = at(0, -0.8);      // up, in a run: nothing
+  const knobAt = (() => { at(2, 0); return T.knob && T.knob.dx; })();
+  T.pointer('up', g, cx, cy);
+  tick();
+  const ups = heard.filter((e) => e.code === 'ArrowUp' || e.code === 'ArrowDown').length;
+  ok(a0 === 0 && a1 === 0 && a2 === 1 && a3 === 1 && a4 === 0 && a5 === -1 && a6 === 0 && ups === 0
+    && Math.abs(knobAt - r) < 0.01 && inp.axis === 0 && !T.knob,
+    `K. the joystick in a run [axis at rest, 0.25 r, 0.5 r, back to 0.25 r, 0.15 r, -0.5 r, up]: ${[a0, a1, a2, a3, a4, a5, a6].join(' ')} (want 0 0 1 1 0 -1 0), ${ups} up/down keys (want 0), the knob at ${knobAt && knobAt.toFixed(1)} of ${r.toFixed(1)} pushed twice its base's radius (want the rim), lifted: axis ${inp.axis}, knob ${T.knob ? 'held' : 'home'}`);
+  // Grabbed a little outside its base: a thumb need not land inside the ring.
+  const gf = ++fingerId;
+  T.pointer('down', gf, cx + 1.3 * r, cy);
+  tick();
+  const grabbed = inp.axis === 1;
+  T.pointer('up', gf, cx, cy);
+  tick();
+  ok(grabbed && inp.axis === 0, `K. a thumb landing 1.3 radii right of the joystick grabbed it and ran him right: ${grabbed}`);
+  note('K. the joystick: chosen in the options, in the arrows\' place on each screen, a gap between its lines, one axis at a time in a menu, left and right alone in a run, the knob held in its base, and the default');
+}
+
+// =============================================================================================
+// L. The first frames, the phone's backdrop at half resolution, a phone's defaults.
+// =============================================================================================
+{
+  // Booted with the music on and a context that runs at once (the WebView's policy): nothing
+  // played before the game was drawn; after it, the title's music, and ready() once.
+  ok(AT_BOOT.track === null && !AT_BOOT.voices && AT_BOOT.readies === 0 && SHELL.readies === 1 && !!V.audio.track,
+    `L. at boot the music was ${AT_BOOT.track || 'off'} (${AT_BOOT.voices ? 'playing' : 'silent'}), ready() ${AT_BOOT.readies} times; drawn, the music is ${V.audio.track}, ready() ${SHELL.readies} times (want silent and none, then music and once)`);
+  // A phone's backdrop through the half-resolution buffer: every one of its pixels the full
+  // resolution's, the art being two backing pixels to the pixel. BASEMENT, whose FAR is opaque,
+  // so the sky -- a gradient, which halving would band -- is nowhere seen.
+  const Rm = await import(u('src/render/renderer.js'));
+  const { Backdrop } = await import(u('src/render/backdrop.js'));
+  const { THEMES } = await import(u('src/game/themes.js'));
+  const full = document.createElement('canvas'); full.width = 1920; full.height = 1080;
+  const half = document.createElement('canvas'); half.width = 960; half.height = 540;
+  const gf = full.getContext('2d'), gh = half.getContext('2d');
+  gf.imageSmoothingEnabled = false; gh.imageSmoothingEnabled = false;
+  const B = new Backdrop();
+  let diff = 0, n = 0;
+  for (const cam of [0, 37, 1234.5]) {
+    gf.setTransform(4, 0, 0, 4, 0, 0); B.draw(gf, cam, 0, THEMES[0], null, 0);
+    gh.setTransform(2, 0, 0, 2, 0, 0); B.draw(gh, cam, 0, THEMES[0], null, 0);
+    const F = full.data, H = half.data;
+    for (let y = 0; y < 1080; y += 3) for (let x = 0; x < 1920; x += 3) {
+      const i = (y * 1920 + x) * 4, j = ((y >> 1) * 960 + (x >> 1)) * 4;
+      n++;
+      if (F[i] !== H[j] || F[i + 1] !== H[j + 1] || F[i + 2] !== H[j + 2]) diff++;
+    }
+  }
+  // And a phone's frame draws it so: the tiles into the half buffer, the buffer onto the screen
+  // once -- no tile on the screen's own canvas.
+  const R = V.renderer, P = Object.getPrototypeOf(R.ctx), di = P.drawImage;
+  let tilesOnScreen = 0, halfBlits = 0;
+  P.drawImage = function (img, ...a) {
+    if (this === R.ctx) { if (img === R.halfBg) halfBlits++; else if (img.height === 256) tilesOnScreen++; }
+    return di.call(this, img, ...a);
+  };
+  try { V.renderFrame(1, 1 / FPS); } finally { P.drawImage = di; }
+  ok(diff === 0 && n > 600000 && halfBlits === 1 && tilesOnScreen === 0,
+    `L. the backdrop at half resolution: ${diff} of ${n} sampled pixels unlike the full resolution's (want 0); a phone's frame blits the half buffer ${halfBlits} time(s) and draws ${tilesOnScreen} tile(s) on the screen itself (want 1 and 0)`);
+  // A phone's defaults, made once into the save (Settings.phoneDefaults).
+  const s = V.settings();
+  ok(s.fpsCap === 60 && s.particles === 'medium' && s.scanlines === false && s.touchV === 2,
+    `L. a phone's defaults: FRAME CAP ${s.fpsCap}, PARTICLES ${s.particles}, SCANLINES ${s.scanlines ? 'on' : 'off'}, marked ${s.touchV} (want 60, medium, off, 2)`);
+  note('L. no music until the game is drawn, then the loading screen told to go once; a phone\'s backdrop at half resolution, pixel for pixel; a phone\'s defaults');
 }
 
 cleanup();

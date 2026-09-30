@@ -465,7 +465,7 @@ function retire(list, n) {
  *                   changing at once -- they keep the pace the climb gave them and thin out.
  */
 export function drawStreaks(ctx, list, intensity, dt, theme, budget, nextTheme, zoom = 1,
-  pace = intensity) {
+  pace = intensity, strength = 1) {
   const grain = zoom >= 1.75 ? 2 : 1;
   const atlas = atlasFor(theme);
   if (theme.name !== shown) { shown = theme.name; shownFor = 0; }
@@ -497,7 +497,8 @@ export function drawStreaks(ctx, list, intensity, dt, theme, budget, nextTheme, 
   // full strength. The old global alpha of 0.75-1 thinned the colour toward the backdrop.
   const v = nearSpeed(pace);
   const inv = 1 / PX;
-  ctx.globalAlpha = 1;
+  // `strength`: how strongly they show, 1 but on a phone (renderer.js PHONE_STREAKS).
+  ctx.globalAlpha = strength;
   let kept = 0;
   for (let i = 0; i < list.length; i++) {
     const s = list[i];
@@ -526,13 +527,13 @@ export function drawStreaks(ctx, list, intensity, dt, theme, budget, nextTheme, 
   if (intensity > 0.75) {
     const VWu = SW / PX, VHu = SH / PX;
     const ex = BLOOM_X + 2 * (SIDE_W + 1);
-    ctx.globalAlpha = (intensity - 0.75) / 0.25;
+    ctx.globalAlpha = strength * (intensity - 0.75) / 0.25;
     ctx.drawImage(atlas, BLOOM_X, 0, SIDE_W, 1, 0, 0, SIDE_W / PX, VHu);
     ctx.drawImage(atlas, BLOOM_X + SIDE_W + 1, 0, SIDE_W, 1, VWu - SIDE_W / PX, 0, SIDE_W / PX, VHu);
     ctx.drawImage(atlas, ex, 0, 1, END_H, 0, 0, VWu, END_H / PX);
     ctx.drawImage(atlas, ex + 2, 0, 1, END_H, 0, VHu - END_H / PX, VWu, END_H / PX);
-    ctx.globalAlpha = 1;
   }
+  ctx.globalAlpha = 1;
 }
 
 /** For tools: the painted lengths, the near speed at an intensity, and a zone's atlas. */

@@ -13,7 +13,7 @@
       android:icon="@mipmap/ic_launcher"
       android:allowBackup="false"
       android:hardwareAccelerated="true"
-      android:theme="@android:style/Theme.Material.NoActionBar.Fullscreen"
+      android:theme="@style/Game"
       android:enableOnBackInvokedCallback="true">
     <activity
         android:name=".MainActivity"

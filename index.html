@@ -50,14 +50,19 @@
     position: fixed;
     inset: 0;
     display: flex;
+    flex-direction: column;
+    gap: 18px;
     align-items: center;
     justify-content: center;
-    color: #7fdcff;
-    font: 14px/1.6 ui-monospace, Consolas, monospace;
+    color: #e8c870;
+    font: 700 16px/1.6 ui-monospace, Consolas, monospace;
+    letter-spacing: 2px;
     background: #05030a;
     text-align: center;
     white-space: pre;
   }
+  /* The game's own icon over the loader's line, as the Android app's loading screen shows it. */
+  #boot img { width: 112px; height: 112px; image-rendering: pixelated; }
   /* The two things a page embedded in another site (itch.io) has to say for itself; see
      src/core/embed.js, which shows and hides them. Pointer events pass through, so the
      click that answers the focus banner lands on the canvas and takes the keyboard. */
@@ -73,6 +78,34 @@
     pointer-events: none;
     z-index: 2;
   }
+  /* A phone held upright: the game is played sideways, and upright its 16:9 frame is a strip
+     across the middle of the screen (an iPhone in Safari opens that way). Said, over the game,
+     until the phone is turned; main.js pauses a run it finds upright. The Android app is held
+     sideways by the system and never shows it. */
+  #rotate {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 20;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 28px;
+    background: #05030a;
+    color: #e8c870;
+    font: 700 20px/1.5 ui-monospace, Consolas, monospace;
+    text-align: center;
+    letter-spacing: 2px;
+  }
+  #rotate .phone {
+    width: 64px;
+    height: 108px;
+    border: 5px solid #e8c870;
+    border-radius: 12px;
+    animation: turn 2.4s ease-in-out infinite;
+  }
+  @keyframes turn { 0%, 30% { transform: rotate(0deg); } 60%, 100% { transform: rotate(-90deg); } }
+  @media (orientation: portrait) and (pointer: coarse) { #rotate { display: flex; } }
   #focus-hint { top: 10px; color: #ffe23d; }
   #saves-off { bottom: 10px; color: #9aa0bb; max-width: 90%; }
   #focus-hint[hidden], #saves-off[hidden] { display: none; }
@@ -80,7 +113,8 @@
 </head>
 <body>
   <div id="wrap"><canvas id="screen" width="1920" height="1080"></canvas></div>
-  <div id="boot">LOADING DUKE VYTIS...</div>
+  <div id="boot"><img src="assets/icon.png" alt=""><span>LOADING DUKE VYTIS...</span></div>
+  <div id="rotate"><div class="phone"></div><div>TURN YOUR PHONE<br>SIDEWAYS</div></div>
   <div id="focus-hint" hidden>CLICK THE GAME TO PLAY -- IT DOES NOT HAVE THE KEYBOARD</div>
   <div id="saves-off" hidden>SAVES ARE OFF: THIS BROWSER BLOCKS STORAGE FOR A GAME INSIDE ANOTHER SITE, SO SCORES AND SETTINGS LAST ONLY UNTIL THE PAGE CLOSES</div>
 
@@ -102,7 +136,8 @@
         if (started) return;
         started = true;
         import('./src/main.js')
-          .then(() => { document.getElementById('boot').remove(); })
+          // The loader goes when the game's first frames are on the screen (main.js onScreen).
+          .then(() => {})
           .catch((err) => {
             document.getElementById('boot').textContent = 'FAILED TO START\n\n' + err;
             console.error(err);

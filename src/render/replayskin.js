@@ -26,7 +26,7 @@ import { PX, VW, VH, REPLAY_GHOST_ALPHA } from '../game/constants.js';
 import { textWidth } from './font.js';
 import { mText, mLine, mPanel, mSelect, mPointer, mCap, mBar, mGem, OR, NIGHT } from './menuskin.js';
 import { BOARD_KEYS, BOARD_KEYS_GAP, KEYS_ROWS } from './gameoverskin.js';
-import { mHints, hintsWidth } from './menuskin.js';
+import { mHints, hintsWidth, fillView } from './menuskin.js';
 import {
   FRAMES, FRAMES_LEFT, NAMES, SPR_W, SPR_H, BODY_W, BODY_H, FOOT_DROP, FRONT_FRAMES, IDLE_CYCLE, RUN_CYCLE, placeCell } from './sprites.js';
 
@@ -311,7 +311,7 @@ export function tagOf(e) {
  */
 export function drawReplayList(ctx, st, t) {
   ctx.fillStyle = MENU_BG;
-  ctx.fillRect(0, 0, VW, VH);
+  fillView(ctx);
   mLine(ctx, 'gold', 'REPLAYS', VW / 2, 8, 2, 'center');
   const L = LIST;
   mPanel(ctx, L.x, L.y, L.w, L.h);
@@ -384,7 +384,7 @@ export function listHints(e, pad) {
 const CONFIRM = { x: 76, y: 84, w: 328, h: 78 };
 function drawConfirm(ctx, e, pad) {
   ctx.fillStyle = '#05030ad8';
-  ctx.fillRect(0, 0, VW, VH);
+  fillView(ctx);
   const C = CONFIRM;
   mPanel(ctx, C.x, C.y, C.w, C.h, 'DELETE THIS REPLAY', 'crimson');
   mText(ctx, 'text', tagOf(e) + '   FLOOR ' + e.floor + '   SCORE ' + e.score + '   ' + dateWord(e.date), VW / 2, C.y + 14, 'center');
@@ -427,7 +427,7 @@ export function askHints(info, pad) {
 /** info: ReplayUI.askInfo() -- { from ('list' | 'board'), floor, score, ghostOnly, rows }. */
 export function drawRaceAsk(ctx, info, pad) {
   ctx.fillStyle = '#05030ad8';
-  ctx.fillRect(0, 0, VW, VH);
+  fillView(ctx);
   const A = RACE_ASK, x = A.x, y = Math.round((VH - A.h) / 2);
   mPanel(ctx, x, y, A.w, A.h, RACE_TITLES[info.from] || RACE_TITLES.list);
   const result = 'FLOOR ' + info.floor + '   SCORE ' + info.score + (info.ghostOnly ? '   GHOST ONLY' : '');

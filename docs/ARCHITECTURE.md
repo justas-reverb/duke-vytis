@@ -491,10 +491,10 @@ Two things worth knowing:
   meant the fix reached new players and nobody else. The migration runs once and only
   rewrites that one field, so a deliberate INTEGER survives.
 
-**A screen wider than 16:9 gets wings, not bars** (`wingsFor`, `setWings`, `drawWings` in
-`renderer.js`; 2026-09-29, the user's Pixel 10: "the game doesnt actually seem to go fully full
-screen"). A phone held sideways is about 20:9, and the 16:9 frame stood in the middle of it with
-a black band either side. The canvas is now as wide as the screen's shape asks: `wingsFor(w, h)`
+**A desktop's screen wider than 16:9 gets wings, not bars** (`wingsFor`, `setWings`,
+`drawWings` in `renderer.js`; 2026-09-29, first for the user's Pixel 10: "the game doesnt
+actually seem to go fully full screen"). A phone held sideways is about 20:9, and the 16:9 frame
+stood in the middle of it with a black band either side. The canvas is now as wide as the screen's shape asks: `wingsFor(w, h)`
 view units a side -- (w/h x 270 - 480) / 2, rounded up so the canvas reaches both edges, none at
 16:9 or narrower, at most `WING_MAX` (200) -- 60 on a 20:9 phone, 83 on a 3440x1440 ultrawide.
 The frame is drawn into the back buffer as ever, untouched, and `present()` puts it in the
@@ -503,6 +503,29 @@ middle of the wider canvas; `drawWings` then fills each wing with the frame's ow
 the vignette's side bands (`edgeTint`) move out to the canvas's edges. Nothing in the frame
 changes and the simulation never sees the wings. `tools/test-touch.mjs` J holds the widths and
 the mirror, pixel for pixel.
+
+**A phone's screen is filled by the game** (the renderer's `cover`, `COVER_MAX`, `setCover`,
+when the page is played by touch; 2026-09-29). On a phone the wings were most of the screen --
+60 units of mirrored wall a side on the Pixel 10, 105 on an iPhone in Safari, beside the frame's
+own walls: "the side walls are unproportionally large to the main game ... most of the space
+should be filled by the game not by the side walls". So the canvas is the screen's shape at the
+frame's height (to `COVER_MAX`, 2.4:1; wider, the page's dark either side), and every
+`setTransform` on it is composed with a STAGE (`installStages`, `useStage`): the WORLD's -- the
+frame scaled by f, the screen's width over the frame's (1.2625 on the Pixel 10), about its
+middle, top and bottom cut -- for the backdrop, the world, the streaks and the floaters; the
+SCREEN's -- f across, the height as it is -- for the bands along the edges (the vignette, the
+danger band, the flash, the fall's dark, the scanlines); and the UI's -- the frame as it is, in
+the middle -- for the HUD, the companions' calls, the callout badge and every menu, whole and at
+their own size. `setWorldTransform` always takes the world's, so the race's ghost, drawn with the
+HUD, stays on the world. A wash over a menu fills the whole canvas (`menuskin.js fillView`), not
+the frame in its middle. The world's scale is no whole number of pixels on a phone, which at
+400-plus pixels to the inch nobody sees; the UI keeps whole ones. A phone draws with no back
+buffer (no LOW LATENCY, no wings), and its BACKDROP at half the frame's resolution
+(`halfBackdrop`), put up in one blit: the tiles are painted at two backing pixels to the
+pixel, so nothing is lost -- `test-touch` L compares the two pixel for pixel -- and measured in
+Chromium at the Pixel's shape, the pixels a frame paints went from 14.5 million to about 6
+(the sky and three layers were four screens of them). The same page held upright shows TURN
+YOUR PHONE SIDEWAYS (`index.html #rotate`), and a run turned upright pauses.
 
 `test-scaling.mjs` checks twelve sizes (ten real displays, the 640x360 minimum window and
 an 800x600 one), that nothing is ever drawn larger than its window, that the aspect ratio
@@ -740,7 +763,7 @@ decides:
 
 | | |
 |---|---|
-| in a run, focused | uncapped, or the `FRAME CAP` setting (60 on a phone until chosen otherwise: `Settings.phoneDefaults`) |
+| in a run, focused | uncapped, or the `FRAME CAP` setting (60 on a phone until chosen otherwise: `Settings.phoneDefaults`, which also moves a phone to PARTICLES MEDIUM and no SCANLINES, once) |
 | on a menu, focused | 60 -- skips **63%** of draws on a 160 Hz panel |
 | window not focused, on a menu | 5 -- skips **97%** |
 | window not focused, mid-run or mid-fall | 10 -- unless the pad is playing (below) |
@@ -882,7 +905,16 @@ its hints say, with no list of every screen's keys to go stale. A key stays `STR
 **TOUCH KEYS** (OPTIONS, only on a phone and first there; 60-130%, 80% by default: the user's
 "the left / right / space buttons should be smaller and adjustable") sizes the play keys, as far
 as the width has room for them side by side; ESC and the top row keep the first cut's size.
-The phone's options drop LOW LATENCY where the WebView cannot use it (`Settings.optionsFor`).
+The phone's options drop LOW LATENCY, which a phone never uses (`Settings.optionsFor`).
+
+**MOVE WITH** (OPTIONS, a phone's, second): a JOYSTICK, the default, or the < > keys -- "add
+joystick controlls on the movement and add swapping to it in the options". The joystick stands
+where < > stand, in for whichever arrows the screen has (< > in a run, ^ v too where a cursor
+moves), and holds the arrow it is pushed toward (`steer`): past `STICK_ENGAGE` (0.3 of its
+radius) it takes the key, and lets go only back under `STICK_RELEASE` (0.2), so a thumb resting
+on the line does not stutter it; along one axis at a time in a menu (a cursor and its value are
+different keys), left and right alone in a run; the knob held inside the base; grabbed within
+1.35 radii of its middle.
 
 **The title draws its own buttons on a phone** (`screens.js`, `drawMenu`'s `touch`): TAP TO
 CLIMB where PRESS SPACE TO CLIMB stands, and OPTIONS STATS REPLAYS HELP where the key hints
@@ -902,7 +934,10 @@ over). The page's safe-area insets, all a browser says, are a band down the whol
 punch hole's is the status bar's height -- and pushed off it ESC stood over the HUD's floor
 counter and < > ^ v over the options' words; a browser still keeps to the band. The Android
 app's background and foreground arrive as
-`app:background` / `app:foreground` events: a run pauses and the sound goes with the app.
+`app:background` / `app:foreground` events: a run pauses and the sound goes with the app. Until
+the game's first two frames are drawn (`main.js onScreen`) a phone plays no music, and then the
+page tells the Android app its loading screen can go (`gameShell.ready`): the app had come up to
+a long black screen with the music already playing.
 `tools/test-touch.mjs` boots the real `main.js` with `?touch`.
 
 ## A page inside someone else's page
