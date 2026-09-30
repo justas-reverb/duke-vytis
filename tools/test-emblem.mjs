@@ -1,6 +1,6 @@
 // Guard for the title emblem and the header it sits in.
 //
-// "The shield goes between the words and the text is still visible" is a layout
+// The shield between the words, with every letter still visible, is a layout
 // requirement, and a layout requirement is arithmetic -- so it can be checked instead
 // of squinted at. Everything here reads headerBox(), the same function drawTitle()
 // draws from, rather than a second copy of the numbers that would drift away from it.

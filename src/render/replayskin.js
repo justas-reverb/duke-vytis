@@ -397,9 +397,9 @@ function drawConfirm(ctx, e, pad) {
 
 /**
  * Before a race starts (ReplayUI.raceId): the options the run was played at beside the
- * player's own, and whether to race at the run's. The user, 2026-09-29: "when were trying to
- * race against a replay or race against best make sure it lists all the options that replay
- * used and ask if you want to use the same options so it would match". A modal over the list
+ * player's own, and whether to race at the run's: the user asked for a race against a replay or
+ * against the best run to list every option that replay was played at, and to offer to race at
+ * the same ones so the two match (2026-09-29). A modal over the list
  * or the scoreboard, as the delete's confirm is. A row per option that changes how a run plays
  * (replays.js raceOptions): the run's value, the player's, and SAME or DIFFERS. The ledges are
  * the run's either way -- a race is on its tower -- and a line says so when they differ. When

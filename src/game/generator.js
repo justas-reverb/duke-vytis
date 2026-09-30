@@ -30,8 +30,8 @@ export const PATTERNS = ['zigzag', 'drift', 'cluster', 'scatter', 'stair',
  * +/- PLAT_W_JITTER every ledge used to get is 0.70-1.30), and the floor it is first picked
  * from (`from`).
  *
- * "can we add variation to the way the platforms are layed out its way too predictible
- * now" (the user, 2026-09-28). The tower had five patterns, picked evenly, 4-11 floors
+ * The user asked for more variety in how the ledges are laid out, which had become far too
+ * predictable (2026-09-28). The tower had five patterns, picked evenly, 4-11 floors
  * each, every ledge within 30% of one width and set about its own width beside the last.
  * Measured over 1,782 floors of three bot runs (floors 100-700), the eye's best guess of the
  * next step -- the last step again, or the last step reversed -- was out by 0.38 of a step,
@@ -153,8 +153,8 @@ export class Tower {
    * assert, same suite -- so this is not a cheat mode, it is a tower that happens to
    * suit the way the bot moves. Human play never sees it.
    *
-   * Nor, since 2026-09-29, does the title screen: the user asked for "a full showcase of the
-   * actual game there", so the demo climbs a player's tower (game.js newRun) with a bot
+   * Nor, since 2026-09-29, does the title screen: the user asked for it to show the real game
+   * in full, so the demo climbs a player's tower (game.js newRun) with a bot
    * rebuilt to survive it. A flow tower is built now only by the replay fingerprint's probe
    * (replay.js), and that is why it stays: its first 1,800 floors are in every replay's
    * fingerprint, so changing or removing it would refuse every replay and race file already

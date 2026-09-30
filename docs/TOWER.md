@@ -14,8 +14,8 @@ art gets into them), STATUS.md (what is wrong with them on screen today) and
 
 ## The climbability guarantee
 
-*"Platforms are random but never broken so it's unclimbable."* That is enforced, not
-hoped for.
+The ledges are random, but never so broken that the tower cannot be climbed. That is
+enforced, not hoped for.
 
 `src/game/reach.js` computes, from the physics constants, how far a player standing
 **dead still with zero momentum** — the weakest jump the game can produce — can travel
@@ -127,8 +127,8 @@ among those open at that height:
 | chimney | 300 | 4-7 | 0.45-0.65 | narrow ledges straight up, drifting off the walls: held jumps |
 | gauntlet | 500 | 5-9 | 0.40-0.60 | narrow ledges wandering, turning on a coin: care |
 
-Asked for on 2026-09-28: "can we add variation to the way the platforms are layed out its
-way too predictible now". The tower had the first five, picked evenly, every ledge within 30%
+Asked for on 2026-09-28: more variety in how the ledges are laid out, which had become far
+too predictable. The tower had the first five, picked evenly, every ledge within 30%
 of one width. Measured on floors 100-700 of three bot runs (a probe that asks, of each next
 ledge, how far off the eye's best guess is: the last step again, or the last step reversed):
 

@@ -1,15 +1,14 @@
 // ZENITH's ascension: a tenth higher and a tenth swifter for beating the top of the tower.
 //
 // (The aura that came with it -- the combo's stages burning round him -- is parked on the
-// branch park/aura with its own checks, this suite's sections 5 and 6 there: "remove the aura
-// glow and park it", 2026-09-28.)
+// branch park/aura with its own checks, this suite's sections 5 and 6 there: the user asked
+// for the aura glow to be taken out and parked, 2026-09-28.)
 //
-// "have the duke go into sort of super saiyan stages and glowing all around him during the
-// different stages if he keeps a combo through them. if we beat zenith he should get a 2x
-// bounce and speed boost and again if he manages to beat it." (2026-09-28) Then, of the
-// attract bot past 2300: "the bot in the background seems to be going at supersonic and not
-// bound by the rules of the game ... can we have a 1.10x speed increase instead of literally
-// doubling it?" (2026-09-29): each lap is a tenth more of both now (constants.js ASCENSION).
+// The user asked for the Duke to glow through powered-up stages while he keeps a combo going,
+// and for a doubled bounce and a speed boost for beating ZENITH, doubled again each time he
+// beats it (2026-09-28). Then, of the attract bot past 2300, which looked far too fast and
+// free of the game's rules, for a 1.1x boost instead of the doubling (2026-09-29): each lap is
+// a tenth more of both now (constants.js ASCENSION).
 //
 // THE ASCENSION (Game.ascend, constants.js ASCENT_*):
 //   1. THE LAPS. The run's best floor reaching the top of a lap -- CYCLE_FLOORS, 2300, where

@@ -110,8 +110,8 @@ export const SQUEEZE_OPENING = [
  * jump, or TRIPLE JUMP READY once the live combo has climbed TRIPLE_COMBO_FLOORS and the
  * third is banked with it at the next takeoff (Player.tripleUnlocked). It said AIR JUMP
  * READY either way, so the third jump -- the reward for a 250-floor chain -- was only ever
- * found by accident ("lets let the player know when they have a triple jump ready lets
- * replace the double jump text", 2026-09-28). The tutorial's gauge says the same.
+ * found by accident; the user asked for the double jump's text to give way to one that says
+ * the triple is ready (2026-09-28). The tutorial's gauge says the same.
  */
 export const AIR_JUMP_READY = 'AIR JUMP READY';
 export const TRIPLE_JUMP_READY = 'TRIPLE JUMP READY';

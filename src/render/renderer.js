@@ -133,9 +133,9 @@ const MARK_TONES = [[1, 1, 0], [0.72, 0.7, 2], [0.38, 0.34, 3]];
 
 /**
  * Every rectangle of blood on the pit floor after a splat, in world units, on the art
- * grid. drawSplatter paints exactly these, and test-death.mjs measures their area, so
- * "more blood from higher up" is checked against what is drawn rather than against a
- * number that is supposed to drive it.
+ * grid. drawSplatter paints exactly these, and test-death.mjs measures their area, so the
+ * rule that a fall from higher up leaves more blood is checked against what is drawn rather
+ * than against a number that is supposed to drive it.
  *
  * Blood lies ON the floor, and the floor's surface is the rows ABOVE the contact line,
  * receding away from the viewer (see drawPit). So every stain is half an ellipse standing
@@ -369,9 +369,9 @@ export const WING_STRIP = 12;
  * A PHONE'S screen is FILLED by the game, not by wall (the renderer's `cover`, main.js: when the
  * page is played by touch). The wings above were the first answer to a 20:9 screen, and on a
  * phone they were most of it: 60 units of mirrored wall a side on the Pixel 10, 105 on an iPhone
- * in Safari, beside the frame's own walls -- "the side walls are unproportionally large to the
- * main game ... most of the space should be filled by the game not by the side walls"
- * (2026-09-29). So on a phone the WORLD is drawn bigger, by f = the screen's width over the
+ * in Safari, beside the frame's own walls -- far too much wall for the game between them, and the
+ * user asked for the game to fill the space instead (2026-09-29). So on a phone the WORLD is
+ * drawn bigger, by f = the screen's width over the
  * frame's, so the frame's width spans the screen's and its top and bottom are cut; the HUD and
  * every menu are drawn at their own size in the middle, the whole of them on screen. Three
  * stages map the frame's backing pixels onto the wider canvas (setCover): the world's (f about
@@ -386,9 +386,9 @@ export const COVER_MAX = 2.4;
 
 /**
  * A phone's speed streaks: half as many as the setting gives, at 60% (the renderer's `cover`).
- * The user, 2026-09-29: "make the zooming through eye candy less apparent on phones" -- and they
- * are most of the drawing at the moment a phone was slowest, a climb at full speed ("fps lag
- * especially when we jump up and the screen scrolls").
+ * The user asked for the speed effects to be toned down on phones (2026-09-29) -- and they are
+ * most of the drawing at the moment a phone was slowest, a climb at full speed, where the user
+ * saw the frame rate drop.
  */
 export const PHONE_STREAKS = { share: 0.5, strength: 0.6 };
 
@@ -559,9 +559,9 @@ export class Renderer {
    * Without the hint the compositor shows only finished frames. With it, Chromium presents the
    * canvas on its own path, and a frame can reach the screen before it is finished: the title
    * screen draws the attract run, then the wash over it, then the menu, so a frame caught
-   * between shows the run bright and bare -- the whole menu blinking out ("my whole menu starts
-   * blinking", "it starts to stutter and flickers before returning to normal", 2026-09-28 and
-   * 29). Drawn here and put on the screen in one blit (present), the screen only ever holds
+   * between shows the run bright and bare -- the whole menu blinking out, and stuttering and
+   * flickering for a while, as the user reported on 2026-09-28 and 29. Drawn here and put on the
+   * screen in one blit (present), the screen only ever holds
    * finished frames: at worst the blit itself is caught, the top of one frame over the bottom
    * of the last. The price is that blit, a 1920 x 1080 copy a frame on the GPU.
    */
@@ -665,8 +665,8 @@ export class Renderer {
 
   /**
    * Side margins on a screen wider than 16:9 (wingsFor). A phone held sideways is about 20:9,
-   * and the game's 16:9 frame stood in the middle between two black bars ("the game doesnt
-   * actually seem to go fully full screen on my google pixel 10", 2026-09-29). The frame is
+   * and the game's 16:9 frame stood in the middle between two black bars (the user's Pixel 10,
+   * where the game did not fill the screen, 2026-09-29). The frame is
    * drawn as ever, into the back buffer at 1920 x 1080 -- nothing the game draws or simulates
    * changes, and the shaft is as wide as ever -- and put in the middle of a canvas that much
    * wider (present). Here each margin is filled with the frame's own outermost WING_STRIP,
@@ -1033,8 +1033,8 @@ export class Renderer {
    * title lettered over it. The attract demo behind the title screen draws no HUD, so it
    * had no title, and at its pace (a zone every ten seconds or so, ten floors or more a
    * landing) the blend did not fade: it jumped to about 0.6 of the next zone half a second
-   * before the arrival, and then the whole screen flashed white under the menu -- "my whole
-   * menu starts blinking" (2026-09-28). Measured headless, drawn as main.js draws the menu:
+   * before the arrival, and then the whole screen flashed white under the menu -- the whole
+   * menu blinking, as the user saw it (2026-09-28). Measured headless, drawn as main.js draws the menu:
    * whole-frame luma +20 to +24 in one frame at every arrival, 28 of them in five minutes.
    *
    * So the demo gets neither. Its zone holds until the arrival and then dissolves into the
@@ -1293,8 +1293,8 @@ export class Renderer {
     // launch because most of his speed is vertical. The second was four flat silhouettes of
     // his CURRENT frame on a straight line back along -v, 9 ms a copy clamped at 7 units:
     // on a launch they hung 28 units under his boots, anchored on the cell's bottom rather
-    // than his boots, in none of his squash or spin -- "trailing way behind him when it
-    // should be on top of him". The third was a halo round his outline, placed by the
+    // than his boots, in none of his squash or spin -- trailing far behind him, where the user
+    // expected it on top of him. The third was a halo round his outline, placed by the
     // sprite's own code: on him, but not the look, and in the roll it broke -- the tuck
     // turned about its cell's centre, so the ball of him hopped 17.5 units every quarter
     // turn, and a halo drawn only where he is jumped with it and left nothing behind. The

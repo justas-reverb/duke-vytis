@@ -45,7 +45,7 @@ const hsl = (hex) => {
 // TWO guards, because eye strain has two separate causes and one number cannot see
 // both. I previously loosened the chroma threshold to let ZENITH's near-white gold sky
 // through on the grounds that warm hues are gentler than violet. That was wrong --
-// ZENITH was reported as "a straight up flashbang" -- and the reason is the second
+// the user found ZENITH blinding -- and the reason is the second
 // axis: a near-white field filling the whole screen is painful whatever its hue.
 //
 //   chroma     saturation weighted toward mid lightness. Catches screaming colour.

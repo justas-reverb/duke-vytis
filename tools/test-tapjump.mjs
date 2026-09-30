@@ -1,7 +1,7 @@
 // A jump TAPPED just before touchdown jumps on landing. (docs/GAMEPLAY.md "The jump buffer".)
 //
-// The user: "the game feels too slow now, I want the jumps to feel faster". What two
-// reviewers found under it was not speed: a jump tapped 4 to 100 ms before touchdown did
+// The user found the game too slow and asked for jumps that feel faster. What two reviewers
+// found under it was not speed: a jump tapped 4 to 100 ms before touchdown did
 // NOTHING, at 100% and at every JUMP SPEED, and in every build before this one. Player.step
 // called input.consumeJump() every step, so a press made in the air with no air jump to
 // spend was taken there and thrown away, and the jump buffer (JUMP_BUFFER, 0.12 s -- in

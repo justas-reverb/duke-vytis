@@ -5,8 +5,8 @@
 // WHY IT WAS REDRAWN. The first painted ledge here was a row of glossy TEAL crystal blocks
 // on a backdrop of magenta and violet gas (src/render/bgpaint/nebula.js): teal against
 // magenta is a complementary pair, and at zoom 1 every ledge on the screen was a cyan bar
-// laid over pink clouds -- the player called the zone ugly, the ledge and the backdrop
-// "mismatching very heavily". And the blocks, each a flat front face with a lit edge, a
+// laid over pink clouds -- the user found the zone ugly, the ledge and the backdrop badly
+// mismatched. And the blocks, each a flat front face with a lit edge, a
 // ridge and a glint, read as glass blocks or keycaps, not as crystal.
 //
 // WHAT IT IS NOW. The zone's own crystal: amethyst, the colour of its decor's shards

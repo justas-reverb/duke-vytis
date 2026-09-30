@@ -3,8 +3,8 @@
 // Twice rewritten on complaints. The first lament was the local model's three bars, played
 // in whatever key the climb had reached and dropped to E at the impact, mid-phrase. The
 // second was THE CALL turned over (2026-09-23), in the key the climb was cut in; the user
-// heard it as "bad" and asked for "something like phantom of the opera but 8bit like a
-// spooky scary death with suspension" (2026-09-28). This is the third: a gothic organ and a
+// found it poor and asked for something in the manner of The Phantom of the Opera, but 8-bit,
+// a spooky death held in suspense (2026-09-28). This is the third: a gothic organ and a
 // music box (tools/compose-music.mjs, THE LAMENT) -- a fall that tightens, a stab struck at
 // the impact, and a loop of suspensions that comes home only round the seam -- and its
 // stab is LANDED on the impact by the engine (Audio.landLament), where the second's landing

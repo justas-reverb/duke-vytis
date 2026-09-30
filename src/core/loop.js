@@ -98,7 +98,7 @@ export class Loop {
    * on a 60 Hz one one -- it draws every n-th display frame, judged by time with half a frame
    * to spare, so every drawn frame is on screen equally long. The averaging below drew a 60 cap
    * on 120 Hz one, two or three frames apart as the callbacks jittered, and a phone showed it
-   * as a steady judder (the user's Pixel 10, 2026-09-29: "steadily choppy").
+   * as a steady judder (the user's Pixel 10, 2026-09-29).
    *
    * Otherwise it SUBTRACTS the interval, never resets to zero. Resetting quantises the cap to a
    * whole number of display frames -- a 60 cap on a 160 Hz panel drew every third frame, which

@@ -147,9 +147,9 @@ let lastRender = performance.now();
 let uiT = 0;
 /**
  * Whether the game has been drawn yet: two frames rendered (renderFrame). Until then a phone plays
- * no music -- the Android app came up to a long black screen with the music already going ("the
- * apk loading produces a long black screen and music plays before we see anything", 2026-09-29)
- * -- and then the page tells the app its loading screen can go (gameShell.ready). A desktop, where
+ * no music -- the Android app came up to a long black screen with the music already going, which
+ * the user reported on 2026-09-29 -- and then the page tells the app its loading screen can go
+ * (gameShell.ready). A desktop, where
  * the page is up in a moment, starts its music as it always has.
  */
 let onScreen = false;
@@ -617,8 +617,8 @@ function applyRenderCap() {
   // with Start there is being played, and at 10 fps it was a slide show.
   // Unfocused but in view -- a click on the other monitor, a notification -- it drew 5 fps on
   // the title screen and 10 in a replay: the attract run behind the menu went to a slide show
-  // until the window had the focus back, which read as the menu glitching ("it starts to stutter
-  // and flickers before returning to normal", 2026-09-29). Half the menus' rate, still smooth;
+  // until the window had the focus back, which read as the menu stuttering and flickering for a
+  // while (reported 2026-09-29). Half the menus' rate, still smooth;
   // a window out of sight (document.hidden, above) still drops to 4.
   if (!windowFocused && !(playing && input.lastDevice === 'pad')) {
     loop.setRenderCap(30); return;
@@ -645,8 +645,8 @@ function update(dt) {
   // The attract demo steps only while it is on screen -- the title and the guide draw it; the
   // options, the stats, the help and the replays' list are opaque screens, and it climbed on
   // behind them unseen -- and starts its tower again from the first floor each time it comes
-  // back into view. The user, 2026-09-29: "make sure the bot restarts everytime from the very
-  // start whenever we enter the main menu so he doesnt keep going when we dont see him".
+  // back into view: the user asked for the bot to start from the bottom every time the main menu
+  // comes back, rather than climb on out of sight (2026-09-29).
   const demoOn = game.state === STATE.MENU || game.state === STATE.TUTORIAL;
   if (demoOn && !demoWasOn) restartDemo();
   demoWasOn = demoOn;
@@ -790,8 +790,8 @@ function drawFrame(alpha, forcedDt) {
 //
 // Each screen has the fixed buttons its keys are for (touchKeys), no more: none on the title,
 // whose own buttons are drawn on it (screens.js TOUCH_BUTTONS), and ^ v only where a cursor
-// moves -- the user, 2026-09-29: "up and down arrows appear on the main menu when they do nothing
-// there". What a screen draws to be tapped is `touchTargets`, in view units.
+// moves -- the user found up and down arrows on the main menu that did nothing there
+// (2026-09-29). What a screen draws to be tapped is `touchTargets`, in view units.
 const TOUCH_KEYS = {
   run: ['left', 'right', 'jump', 'esc'],                    // a run, the guide
   watch: ['left', 'right', 'up', 'down', 'jump', 'esc'],    // a replay: seek, speed, pause, leave

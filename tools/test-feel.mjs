@@ -57,17 +57,16 @@
 //      and plays back identically, and read as EASY is not that run; EASY writes the flags byte
 //      it always did; a difficulty this build does not offer is refused. In 7, the run is at the
 //      saved DIFFICULTY (MEDIUM, the default) and a race at its ghost's (EASY).
-// THE DEFAULT'S MOVES (settings.js SPEED_V): to 140% on 2026-09-28 ("I WANT HIM TO HAVE MORE
-// SPEED PLEASE") and back to 120% on 2026-09-29 ("default settings for the game is 120% jump
-// speed normal platforms and normal gravity"):
+// THE DEFAULT'S MOVES (settings.js SPEED_V): to 140% on 2026-09-28, when the user asked for
+// more speed, and back to 120% on 2026-09-29, when the user set the defaults to 120% jump
+// speed with NORMAL ledges and NORMAL gravity:
 //  10. The menu offers 100% to 140% and defaults to 120%; a 140% saved since the first move --
 //      that move's default -- is moved back to 120% once and saved so; a 140% chosen after that
 //      stays, and so does one saved before the first move (a choice then); any other saved
 //      speed stays; settings never saved start at 120%.
-// GRAVITY (settings.js GRAVITIES), how heavy he is, 2026-09-29: "allow for changing gravity
-// options in the settings too"; then "i want the new normal to be somewhere in the middle between
-// the current normal and the low option. high wlll be made as something inbetween normal and
-// hard as its too rough":
+// GRAVITY (settings.js GRAVITIES), how heavy he is, 2026-09-29: the user asked for gravity as
+// an option; then for a lighter NORMAL, between the old one and LOW, and a gentler HIGH, since
+// the first was too rough:
 //  11. The menu offers LOW 0.8, NORMAL 0.9 and HIGH 1.1, NORMAL by default, the row right after
 //      DIFFICULTY; a gravity an older build saved loads as the one of its name (1 as NORMAL, 1.2
 //      as HIGH), one never offered as NORMAL. A run that says none is at 1 (CLASSIC), to the bit

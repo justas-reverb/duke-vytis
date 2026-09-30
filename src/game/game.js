@@ -465,8 +465,8 @@ export class Game {
     // `zoom` has to step. A fractional world scale resamples every sprite on its way to
     // the screen -- softly wrong, everywhere, all the time -- and test-scaling.mjs exists
     // because that shipped once, fractional across 96.7% of the arena's range. But
-    // stepping it INSTANTLY snaps the whole view by 12.5% four times a run, which is what
-    // "the zoom out is not smooth" was: not a slow transition, no transition at all.
+    // stepping it INSTANTLY snaps the whole view by 12.5% four times a run, which is what the
+    // zoom-out reported as not smooth was: not a slow transition, no transition at all.
     //
     // UP HERE, not in the arena update, because the arena update only runs while PLAYING.
     // Left there, a glide interrupted by a death froze mid-transition and stayed there:
@@ -1443,7 +1443,7 @@ export class Game {
       }
       this.tumble += dt * 7.5;
 
-      // There were "wind and debris rushing past" here: a mote in the zone's particle colour
+      // There was wind and debris rushing past here: a mote in the zone's particle colour
       // every 30 ms round him, all the way down -- specks drifting up past a man falling alone
       // down the shaft. The fall is him alone now; nothing is shed on the way.
 

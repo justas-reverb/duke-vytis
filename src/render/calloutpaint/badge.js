@@ -1,7 +1,7 @@
 // The prestige badge: x2, x3 ... beside a callout's word on every lap of the tower after
 // the first, for a Duke who has climbed a whole lap of the zones and not died.
 //
-// The player asked for "a 2x next to the next announcement as a prestige": the thing a
+// The user asked for a 2x beside the next announcement, as a mark of prestige: the thing a
 // player is proud of. So it is not a number in the HUD's font. It is lettered in the
 // callouts' own kit (kit.js) at art resolution, one art pixel per backing pixel: the same
 // font as a skeleton, the same bevel lit from the upper left, the same ramps, the same

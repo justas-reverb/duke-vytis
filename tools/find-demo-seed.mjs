@@ -37,7 +37,7 @@ for (const [flag, key] of [['speed', 'jumpSpeed'], ['platforms', 'platforms'], [
 }
 
 /**
- * What "a showcase" means, in one number; -1 for a tower that is out.
+ * What makes a tower a showcase, in one number; -1 for a tower that is out.
  *
  * Out: it did not pass ZENITH (floor 2300), or it shows a fault the demo is held to never
  * showing (tools/measure-demo.mjs): a miss of more than three floors, a stall of two seconds,

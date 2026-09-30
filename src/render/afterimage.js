@@ -24,7 +24,7 @@
 // cell, 12.4 units above the ball, so the ball hopped 17.5 units at every quarter turn,
 // and the copies from before a turn -- rightly drawn where he had been drawn -- stood a
 // ball's width off him for two or three frames, six times a roll: a second ball beside
-// him, which is the roll "breaking" in another shape. See SPIN_PIVOT in sprites.js.
+// him, which is the roll breaking in another shape. See SPIN_PIVOT in sprites.js.
 //
 // A point between two recorded frames takes the OLDER frame's state -- the drawing that
 // was on screen while he crossed it -- and its position is interpolated, so the spacing

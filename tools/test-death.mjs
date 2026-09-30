@@ -94,8 +94,8 @@ function largestShare(grid) {
 // --- one body ------------------------------------------------------------------------
 //
 // The parts drawing has four arms -- three near-copies of one, and the arm cut off the torso --
-// and the burst threw all four, with a spare steel shoulder: "i just saw 4 arms pop out when i
-// died" (the user, 2026-09-29). He comes apart into ONE body: a head, a torso, two arms, two
+// and the burst threw all four, with a spare steel shoulder: the user saw four arms fly out at
+// a death (2026-09-29). He comes apart into ONE body: a head, a torso, two arms, two
 // legs, his shield, sword and crown, and no plate. The counts are literals, the spec whatever
 // the drawing holds. The two arms are a left and a right: of every pair of arms the drawing
 // has, the one most nearly each other's mirror image (measured here with a copy of the rule's
@@ -146,7 +146,7 @@ function largestShare(grid) {
 //    blue) than TORSO_REACH of the shortest arm's length. The arm that hung off it reached
 //    0.57, with its hand. Its own right pauldron reaches 0.25, and this let that stay on at
 //    first (0.4) as the torso's own armour -- until the user, of the build with the arm cut
-//    free, still saw an arm that "doesnt detach properly": in the settled pieces the tabard
+//    free, still saw an arm that did not come off properly: in the settled pieces the tabard
 //    wore a steel shoulder. It is cut off as a plate now, the tabard's own trim and belt
 //    reach 0.18, and 0.22 fails the shoulder left on (PLATE_MIN set past reach: 0.25);
 //  - no arm or leg is two: none has more than LIMB_TWICE the ink of the smallest of its

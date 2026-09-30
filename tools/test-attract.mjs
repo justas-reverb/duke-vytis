@@ -5,18 +5,18 @@
 //      options, the statistics, the help and the replays' list are opaque screens, and it used
 //      to climb on behind them unseen -- and starts its tower again from the first floor each
 //      time it comes back into view: from each of those screens, and from a run left for the
-//      title. On the title it goes on, never started again. The user, 2026-09-29: "make sure
-//      the bot restarts everytime from the very start whenever we enter the main menu so he
-//      doesnt keep going when we dont see him".
+//      title. On the title it goes on, never started again. The user asked for the bot to
+//      start from the bottom every time the main menu comes back, rather than climb on out of
+//      sight (2026-09-29).
 //   B. Idle ATTRACT_IDLE seconds on the title (no key, button or click), the menu and its wash
 //      fade out over ATTRACT_FADE and the prompt stands over the demo alone; before then the
 //      menu is drawn and no prompt. Any key brings the menu back and does nothing else -- a
 //      SPACE does not start a run -- and so does a click; every input starts the count again,
 //      so a player pressing a key every few seconds never meets it; with the quit's question up
 //      it never comes. The prompt flashes: over two seconds its alpha rises to 1 and falls to
-//      ATTRACT_DIM of it, never below. "make the menu items disappear and allow for the bot to
-//      be fully viewed if we are idle for 10 seconds on the screen. have a prompt to continue
-//      playing flashing while thats going on."
+//      ATTRACT_DIM of it, never below. The user asked for it (2026-09-29): after ten idle
+//      seconds the menu clears so the bot can be watched whole, with a flashing prompt to
+//      continue playing.
 //
 //   node tools/test-attract.mjs              the checks (a few seconds)
 //   node tools/test-attract.mjs --mutant=N   patches a copy of src/ and must FAIL
@@ -117,7 +117,7 @@ const { STATE } = await import(u('src/game/game.js'));
 const Menu = await import(u('src/render/menuskin.js'));
 const Screens = await import(u('src/ui/screens.js'));
 const { ATTRACT_PROMPT } = Screens;
-// The idle and the fade as LITERALS, the spec they are ("idle for 10 seconds"): read back from
+// The idle and the fade as LITERALS, the spec they are (ten idle seconds): read back from
 // screens.js, a mutant that never lets the view come would set the test waiting for it forever.
 const ATTRACT_IDLE = 10, ATTRACT_FADE = 0.6;
 const game = V.game, demo = V.demoGame;

@@ -25,10 +25,10 @@
 //      round((his y + station) / FLOOR_H) -- with a bounce parabola added on top. 4.9
 //      crossings a minute and 0.4% off screen, and it looked wrong in three ways those
 //      numbers could not see:
-//        - "Jumping from nothing." The rail slid continuously between floors, so a hop
+//        - Jumping from nothing. The rail slid continuously between floors, so a hop
 //          began and ended wherever the rail happened to be: 0% of hops touched a
 //          platform at either end. They only stood on a surface when the rail was at rest.
-//        - "Teleporting across the screen." A lead/trail switch moved the rail's target
+//        - Teleporting across the screen. A lead/trail switch moved the rail's target
 //          4.4 floors and an ease of 24 a second covered it in 0.04 s; sideways, a lane
 //          re-chosen every hop was eased to at 7 a second, peaking at 2569 world units a
 //          second -- six times the Duke's top speed.
@@ -180,8 +180,7 @@ export const TUNE = {
   // With a single station above him they crossed from ahead of him to behind him ONE
   // HUNDRED TIMES A MINUTE. Every frame of that was physical -- the no-teleport check
   // passed throughout -- but a character flipping sides more than once a second is one
-  // nobody can follow, and "teleporting ahead or behind him" is an accurate description
-  // of what it looks like. The timer is jittered by index so two never swap together.
+  // nobody can follow: it looks like teleporting from ahead of him to behind him and back. The timer is jittered by index so two never swap together.
   //
   // THE TWO STATIONS, measured on the human tower (three seeds) with where he will land
   // as the aim. The view reaches about 3.1 floors over his feet while he rises -- the

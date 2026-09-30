@@ -59,12 +59,12 @@ export const JUMP_SPEEDS = [1, 1.1, 1.2, 1.3, 1.4];
 // 60 steps after the ledge instead of 20, at 160% the path is 6.4 units off. Faster than 140%
 // needs his step cut into pieces at high rates first.
 
-// The default: 1.2 once the user had played it ("jump speed 120 seems nice lets keep that as a
-// default", 2026-09-28); 1.4 the same evening, when the user found the Duke too slow on the new
-// defaults of the day -- SMALL ledges and a MEDIUM fire, which cost a flat-out climber 2% of his
-// average speed and 9% of his floors a minute, his physics unchanged to the bit -- "I WANT HIM TO
-// HAVE MORE SPEED PLEASE"; and 1.2 again on 2026-09-29, with NORMAL ledges and a lighter NORMAL
-// gravity: "default settings for the game is 120% jump speed normal platforms and normal gravity".
+// The default: 1.2 once the user had played at it and chose it (2026-09-28); 1.4 the same
+// evening, when the user found the Duke too slow on the new defaults of the day -- SMALL ledges
+// and a MEDIUM fire, which cost a flat-out climber 2% of his average speed and 9% of his floors a
+// minute, his physics unchanged to the bit -- and asked for more speed; and 1.2 again on
+// 2026-09-29, when the user set the defaults to 120% jump speed with NORMAL ledges and the
+// lighter NORMAL gravity.
 // Each move carries the saved default with it, once, and SPEED_V in the saved settings marks it
 // made: 2 moved a saved 1.2 to 1.4, 3 moves a 1.4 saved since then back to 1.2 (the user's own
 // was one). A 1.4 in a save from before the first move was a choice, and stays; so does a speed
@@ -73,12 +73,10 @@ const SPEED_V = 3;
 
 // PLATFORMS: how wide the tower's ledges are, as a multiple of the widths it was tuned with
 // [x; 1 is the tower as it was until 2026-09-28]. Two since 2026-09-29, NORMAL 0.875 (the
-// default) and WIDE 1.175. The user first asked for three, SMALL 0.75 (the default), MEDIUM 1
-// and WIDE 1.35 -- "lets have smaller platforms on default and make selecting small, medium and
-// wide platforms" -- then "normal platform length should be somewhere between the normal and
-// low length of the platform. lets remove the small platforms and only keep wide and normal.
-// wide will be somewhere between the current normal and wide": NORMAL halfway from MEDIUM to
-// SMALL, WIDE halfway from MEDIUM to the old WIDE. Every ledge's width is multiplied by it, its
+// default) and WIDE 1.175. The user first asked for three to choose from, with narrower ledges
+// by default: SMALL 0.75 (the default), MEDIUM 1 and WIDE 1.35. Then for two: a NORMAL between
+// the old default and SMALL, and a WIDE between the old default and the old WIDE, SMALL gone --
+// so NORMAL halfway from MEDIUM to SMALL, WIDE halfway from MEDIUM to the old WIDE. Every ledge's width is multiplied by it, its
 // minimum too (32 at 1, 28 at NORMAL, 37 at WIDE -- the squeeze's floor, 24, still four units
 // over the Duke's 16 + 4 a landing needs); the gaps are the reach proof's and do not change, so
 // every tower stays climbable. A SIMULATION setting like JUMP SPEED: fixed for a run when it
@@ -107,11 +105,9 @@ export const PLATFORM_WORDS = { 0.75: 'SMALL', 0.875: 'NORMAL', 1: 'MEDIUM', 1.1
 
 // GRAVITY: how heavy the Duke is, as a multiple of constants.js GRAVITY [x; 1 is the game as
 // it was tuned]. LOW 0.8, NORMAL 0.9 (the default) and HIGH 1.1 since 2026-09-29. The user
-// first asked for the row -- "allow for changing gravity options in the settings too" -- and it
-// came as LOW 0.8, NORMAL 1 and HIGH 1.2; then, the same day, "i want the new normal to be
-// somewhere in the middle between the current normal and the low option. high wlll be made as
-// something inbetween normal and hard as its too rough": NORMAL halfway from 1 to LOW, HIGH
-// halfway from 1 to the old HIGH. His jump impulses stay as they are, so at g every jump rises
+// first asked for gravity as an option, and it came as LOW 0.8, NORMAL 1 and HIGH 1.2; the same
+// day the user asked for a lighter NORMAL, between the old one and LOW, and a gentler HIGH,
+// since 1.2 was too rough: NORMAL halfway from 1 to LOW, HIGH halfway from 1 to the old HIGH. His jump impulses stay as they are, so at g every jump rises
 // 1/g as high -- a standing jump 71.3 units at 1, 79.3 at NORMAL, 89.4 at LOW, 64.7 at HIGH --
 // and stays up 1/g as long; his fall's cap goes with the root of g (player.js terminalOf). The
 // generator's gaps are the reach proof's at 1 (reach.js MAX_EDGE_GAP, 41), and the weakest jump
@@ -157,13 +153,13 @@ export const DEFAULTS = {
   speedV: SPEED_V,
   // See PLATFORM_WIDTHS: NORMAL, the user's choice (SMALL, 0.75, until 2026-09-29).
   platforms: 0.875,
-  // See DIFFICULTY_LEVELS: MEDIUM. EASY is the fire the user found "way too slow".
+  // See DIFFICULTY_LEVELS: MEDIUM. EASY is the fire the user found far too slow.
   difficulty: 1,
   // See GRAVITIES: NORMAL, the user's choice (1, the game as tuned, until 2026-09-29).
   gravity: 0.9,
   // The screen canvas's `desynchronized` hint: Chromium's low-latency path, up to a frame
-  // less between a key and the screen. On by default, the user's word: "no input lag"
-  // (2026-09-28). It was off because an OFFSCREEN window missed a vsync in nine frames with it;
+  // less between a key and the screen. On by default since 2026-09-28: the user wants no input
+  // lag. It was off because an OFFSCREEN window missed a vsync in nine frames with it;
   // a visible window the size of the panel missed one in nine with it or without (the
   // chromium-frame-timing skill), so that was the rig, not the hint. OFF if it stutters.
   lowLatency: true,
@@ -175,15 +171,16 @@ export const DEFAULTS = {
 
 /**
  * MOVE WITH, a phone's: 'stick', a joystick where < > stood (the default), or 'buttons', the keys
- * (ui/touch.js). The user, 2026-09-29: "add joystick controlls on the movement and add swapping to
- * it in the options on mobile".
+ * (ui/touch.js). The user asked for a joystick to move him on a phone, swappable in the options
+ * (2026-09-29).
  */
 export const TOUCH_MOVES = ['stick', 'buttons'];
 
 /**
  * TOUCH KEYS, a phone's on-screen keys' size [fraction of the first cut's; 0.8 by default]. The
- * first cut's were the user's "should be smaller and adjustable in the settings" (2026-09-29,
- * on a Pixel 10): four fifths of them by default, three fifths to thirteen tenths to choose.
+ * user found the first cut's too big and asked for them smaller and adjustable in the options
+ * (2026-09-29, on a Pixel 10): four fifths of them by default, three fifths to thirteen tenths to
+ * choose.
  */
 export const TOUCH_KEY_SIZES = [0.6, 0.7, 0.8, 0.9, 1, 1.1, 1.2, 1.3];
 
@@ -251,8 +248,8 @@ export function save(s) {
 /** The options menu is a flat list; this is its schema. */
 export const OPTIONS = [
   // First: the two rows that change how the game PLAYS and how it answers the keys. The user
-  // looked for both and could not find them -- "i cant find the jump speed or the low
-  // latency" -- ninth and twelfth of thirteen on a screen then titled GRAPHICS. JUMP SPEED says
+  // looked for both and could not find them -- ninth and twelfth of thirteen on a screen then
+  // titled GRAPHICS. JUMP SPEED says
   // when it applies because a run keeps the speed it started with: a run's replay plays back
   // at one speed.
   { key: 'jumpSpeed', label: 'JUMP SPEED', values: JUMP_SPEEDS,
@@ -330,13 +327,13 @@ const shownRows = new Map();
  * A phone's defaults, once each, when the page is played by touch (main.js), marked done in the
  * save (TOUCH_V) so a player's own choice afterwards stands:
  *   1. FRAME CAP 60. A phone's panel refreshes 120 times a second and more, 8 ms a frame, and a
- *      frame the phone does not finish in time stays on screen twice as long -- the unevenness the
- *      user saw on a Pixel 10 as "steadily choppy" (2026-09-29). At 60, drawn every second
- *      refresh exactly (core/loop.js), every frame has twice the time.
- *   2. PARTICLES MEDIUM, where they were HIGH, and no SCANLINES: "some fps lag especially when we
- *      jump up and the screen scrolls ... make the zooming through eye candy less apparent on
- *      phones" (2026-09-29). Particles and the speed streaks (their budget follows PARTICLES) are
- *      most of a fast climb's drawing, and the scanlines a whole-screen blit every frame.
+ *      frame the phone does not finish in time stays on screen twice as long -- the steady
+ *      unevenness the user saw on a Pixel 10 (2026-09-29). At 60, drawn every second refresh
+ *      exactly (core/loop.js), every frame has twice the time.
+ *   2. PARTICLES MEDIUM, where they were HIGH, and no SCANLINES: the user saw the frame rate drop
+ *      on a phone while the Duke jumped and the screen scrolled, and asked for the speed effects
+ *      toned down there (2026-09-29). Particles and the speed streaks (their budget follows PARTICLES)
+ *      are most of a fast climb's drawing, and the scanlines a whole-screen blit every frame.
  */
 export function phoneDefaults(settings) {
   const v = settings.touchV || 0;
@@ -369,9 +366,9 @@ export function cycle(settings, key, dir = 1) {
 }
 
 // --- fullscreen -------------------------------------------------------------
-// This is the single thing that matters for "why is it a tiny screen". A windowed tab
-// loses 100-200 px of height to browser chrome, which at 4K drops the integer scale
-// from 2 to 1 -- the game in about a quarter of the screen with bars on all four sides,
+// This is the single thing that matters when the game fills only part of the screen. A
+// windowed tab loses 100-200 px of height to browser chrome, which at 4K drops the integer
+// scale from 2 to 1 -- the game in about a quarter of the screen with bars on all four sides,
 // or in AUTO a soft fractional fill. (It was "8 to 7" on the old 480x270 store.)
 //
 // The desktop shell, when there is one. In a browser there is no such object and every

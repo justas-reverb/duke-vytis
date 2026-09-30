@@ -64,8 +64,8 @@ public class MainActivity extends Activity {
    * The loading screen, over the page until the game's first frames are drawn (the page calls
    * gameShell.ready): the game's shield and a spinner on its dark. Under it the page boots -- the
    * WebView starting, 149 modules served from the APK, the painting ahead -- which on a phone was
-   * a long black screen with the music already playing ("the apk loading produces a long black
-   * screen and music plays before we see anything", 2026-09-29). The page holds its music until
+   * a long black screen with the music already playing, as the user reported on 2026-09-29. The
+   * page holds its music until
    * the same moment (main.js onScreen).
    */
   private View loading;
@@ -81,7 +81,7 @@ public class MainActivity extends Activity {
     }
     // The whole screen, the camera's cut-out included. The page used to be laid out beside the
     // cut-out, which left a black band down the camera's side of a phone held sideways (the
-    // user's Pixel 10, 2026-09-29: "the game doesn't actually seem to go fully full screen").
+    // user's Pixel 10, where the game did not fill the screen, 2026-09-29).
     // Now the game draws its side wings under it (render/renderer.js wingsFor), and the
     // on-screen keys keep clear of it by the page's safe-area insets (ui/touch.js; index.html
     // asks for them with viewport-fit=cover).

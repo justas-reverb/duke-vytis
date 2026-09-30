@@ -10,12 +10,12 @@
 //
 // Which buttons, each only on the screens that have a use for it (main.js touchKeys: the title
 // has none of them -- its own buttons are drawn on it, below -- and ^ v only where a cursor
-// moves; the user, 2026-09-29: "up and down arrows appear on the main menu when they do nothing
-// there"):
+// moves; the user found up and down arrows on the main menu that did nothing there,
+// 2026-09-29):
 //   < >      the arrows, held -- a thumb slides from one to the other without lifting; or, as
 //            the player chooses (MOVE WITH in the options, the joystick by default), a JOYSTICK
-//            in their place, which holds the arrow it is pushed toward (steer; the user,
-//            2026-09-29: "add joystick controlls on the movement and add swapping to it")
+//            in their place, which holds the arrow it is pushed toward (steer; the user asked
+//            for a joystick, swappable for the arrows, 2026-09-29)
 //   SPACE    the jump, held as long as the finger is down (HOLD TO CHAIN); start, choose, skip
 //   ESC      the pause in a run, back everywhere else
 //   ^ v      the menus' up and down
@@ -23,7 +23,7 @@
 //            pause, R G on the scoreboard -- so what a screen offers is what its hints say, with
 //            no second list of every screen's keys to go stale.
 // Their size is the player's: TOUCH KEYS on the options screen, 60% to 130% of the first cut,
-// 80% by default ("the left / right / space buttons should be smaller and adjustable").
+// 80% by default (the user asked for the < > and SPACE keys smaller, and adjustable).
 //
 // And TAPPABLE THINGS the screen draws (`targets`, in view units): the title's TAP TO CLIMB and
 // its four buttons. A finger that lands on one and lifts on it presses that one's key.
@@ -110,7 +110,7 @@ const keyOf = (code) => KEY_OF[code] || (code.startsWith('Key') ? code.slice(3).
  * side, so held sideways or upright the buttons are the same size under the thumbs.
  *
  * `size` is TOUCH KEYS, and it sizes the keys a run is played on -- < > ^ v and SPACE, the ones
- * the user asked to be "smaller and adjustable" -- as far as the width has room for them side by
+ * the user asked to have smaller, and adjustable -- as far as the width has room for them side by
  * side (upright, a phone's 100 u across fits them at 110%). ESC and the top row keep the first
  * cut's size: they are found rarely, and in a hurry.
  *

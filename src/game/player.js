@@ -2,9 +2,9 @@
 //
 // Three things the brief asked for live in here and they interact, so they are all
 // in one place rather than scattered:
-//   1. "the more you run the higher your speed"  -> momentum raises the speed cap
-//   2. "and the higher your jump height"         -> jump impulse scales with speed
-//   3. "combos when you double and triple jump and bounce from side to side"
+//   1. the longer he runs, the faster he goes    -> momentum raises the speed cap
+//   2. and the faster he goes, the higher he jumps -> jump impulse scales with speed
+//   3. combos from double and triple jumps and from bounces between the walls
 //      -> air jumps and wall bounces both report into the combo tracker
 //
 // Collision with platforms is one-way (you pass up through them, you land on top).

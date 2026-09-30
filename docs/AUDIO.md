@@ -77,8 +77,8 @@ add up stops the build instead of drifting against the others twenty minutes int
 
 Three things change while he climbs: the THEME, one per stage; the KEY, a step with each
 zone of a stage; and the TEMPO, which leans with how hard the climb is going. The user
-said the music felt like it was "changing too randomly and too much", and measured over
-real runs it was: a companion joining or slipping moved the whole piece into another key
+found that the music changed too much, and at random, and measured over real runs it
+did: a companion joining or slipping moved the whole piece into another key
 the moment it happened, mid-phrase; the key stepped every 200 floors, out of step with
 the zones, onto whatever note came next; the tempo swung up to 35% in one bar of a
 human-paced climb; and past the first lap a theme could be handed over five bars after it
@@ -198,12 +198,12 @@ commit is in the history if the argument ever needs having again.
 
 ## The menu
 
-Asked for: "something that starts fast and is just in your face with it. big brazen
-chords into a lovely harmony." The menu before it was the climb's hook in E Dorian at 138
+Asked for: a theme that starts fast and loud, big brassy chords opening into a lovely
+harmony. The menu before it was the climb's hook in E Dorian at 138
 bpm, one square note at a time, the slowest thing on the soundtrack after the lament.
 
-Then, of the build that had it (2026-09-28): "the main menu music should start going in
-to the nice melody sooner the in your face part a tad overdone there". The fanfare was
+Then, of the build that had it (2026-09-28): the user wanted the melody to arrive sooner,
+and found the loud opening a little overdone. The fanfare was
 eight bars, the call four times -- twelve seconds of brass before the song, 1.8 LU over it,
 every stab a five-note chord. It is half that now.
 
@@ -236,9 +236,9 @@ What plays from the moment the fire takes him until he climbs again.
 It has been rewritten twice on complaints. The first was the local model's three bars,
 played in whatever key the climb had reached and dropped to E at the impact, mid-phrase.
 The second (2026-09-23) was THE CALL turned upside down in the soundtrack's own idiom --
-square lead, triangle bass, choir, a little brass -- and the user heard it as "bad":
-"something like phantom of the opera but 8bit like a spooky scary death with suspension"
-(2026-09-28). That musical is under copyright and nothing of it is used; what was asked
+square lead, triangle bass, choir, a little brass -- and the user found it poor and asked
+for something in the manner of The Phantom of the Opera, but 8-bit, a spooky death held in
+suspense (2026-09-28). That musical is under copyright and nothing of it is used; what was asked
 for is its STYLE, the gothic pipe organ, and the one quotation is where that idiom comes
 from and is free: the opening gesture of Bach's Toccata and Fugue in D minor, BWV 565.
 
@@ -693,7 +693,7 @@ In `src/render/audio.js` unless named otherwise:
 | **A one-sample click at -10.8 dBFS in the previews** | Not in the game: in `tools/engine-render.mjs`. A note's first sample, `ceil(t0 * SR)`, could land a rounding error before its envelope's first event, where it read the gain's default, 1. One note at full level for one sample is inaudible; the stab starts fifty at once, and a skipped fall's summed to 12 dB over the music's peak. A note's gain before its first event is now that event's value. |
 | **The organ lament's fall sagged and dropped out before the stab** | Every check on its notes passed -- a heartbeat quickening, a cluster, the music box falling -- and as heard it did not build: the second half 1 LU UNDER the first. The choir's cluster was on the `pad` envelope, which fades each chord from three quarters of its length while the next swells in from silence, and that met a rest of the heartbeat: 1.3 to 1.6 s in, half a second before the impact of every fall from floor 654 up, the music dropped 12-15 dB for 0.3 s and came back 19 LU up 0.3 s before the stab, a false hit ahead of the real one. Found by the loudness of the render in 100 ms windows, not by the score. The choir is on the `organ` envelope, its cluster grows a note at a time and the heartbeat's last beats have no rests; `test-lament` measures the fall as heard. |
 | **A test's tag disabled the engine's stop()** | test-lament tagged each recorded oscillator with its rank as `o.stop`, which replaced the oscillator's `stop()` method; the engine's call to stop a queued note threw inside a `try` and did nothing, and the test measured a fault that was its own. Tag recorded nodes with names they do not have (`rank`). |
-| **"Changing too randomly and too much"** | Companions moved the whole key -5 to +7 at random moments; the key stepped every 200 floors out of step with the zones, onto whatever note came next; the tempo swung up to 35% in a bar; past lap 1 a theme was handed over five bars in. Now one key, a step only with a zone on its bar line, x0.92-x1.30 at most 2% a bar, a whole loop before a handover. test-steady fails the old behaviour. |
+| **Music that changed too much, at random** | Companions moved the whole key -5 to +7 at random moments; the key stepped every 200 floors out of step with the zones, onto whatever note came next; the tempo swung up to 35% in a bar; past lap 1 a theme was handed over five bars in. Now one key, a step only with a zone on its bar line, x0.92-x1.30 at most 2% a bar, a whole loop before a handover. test-steady fails the old behaviour. |
 | **The steadying made the menu and the lament drag** | The climb's slow easing was applied to every track, and the menu and the lament, which start at their written tempo and rest at `TEMPO_MIN`, took 25 s to settle: the title sagged 8% through its fanfare and song. They settle at `TEMPO_SETTLE` again. |
 | **A chime on a handover's cut tuned to the theme that stopped** | `keyNow()` compared `t < out.end` strictly, and a chime queued ON the cut can round to just under it: in the attract bot's seed-1 run the heavens' chime rang over the march's first downbeat. The new theme counts from a microsecond before its cut. |
 | **A pause brought the march back 15% slower** | `main.js` calls `setIntensity(0)` every frame on the pause screen, and the tempo went on easing while the clock was stopped: x1.13 to x0.97 in one bar after 20 s. `setIntensity` does nothing while paused. |

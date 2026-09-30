@@ -50,7 +50,7 @@ eq('  each trick adds to the score', r2.score, (9 * 10 + 3 * 25) * 1);
 //
 // A chain used to pay floors x 60 x its step x (1 + 0.25 a trick), which grew as the CUBE of
 // the chain -- its floors, its step and its tricks all grow with it -- and runs banked
-// hundreds of millions: "can we make the scores be a normal reasonable number". A trick adds
+// hundreds of millions, and the user asked for scores of a reasonable size. A trick adds
 // now, and the table in ComboTracker.scoreFor is what a chain pays. The bot's 5089-floor
 // chain, 957 tricks, banked 3,777,933,653; it is under four million now, and a 400-floor
 // chain is about the old SCORE KING award's 25,000.

@@ -1,7 +1,7 @@
 // The climb's music changes slowly, and only on the music's own terms.
 //
-// "The game music feels like it's changing too randomly and too much at times" (the user,
-// 2026-09-24). Measured over the attract bot's run and a human-paced one, it was: a
+// The user found that the music changed too much, and at random, at times (2026-09-24).
+// Measured over the attract bot's run and a human-paced one, it was: a
 // companion joining or slipping moved the whole piece into another key the moment it
 // happened, mid-phrase; the key stepped every 200 floors, out of step with the zones, onto
 // whatever note came next; the tempo followed every burst and pause of the run, up to 35%

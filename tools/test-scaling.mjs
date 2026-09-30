@@ -148,8 +148,8 @@ for (const [name, w, h] of [['4K', 3840, 2160], ['1080p', 1920, 1080]]) {
 //
 // The two requirements pull against each other and both matter. A fractional world scale
 // resamples every sprite, so the zoom must be quantised AT REST. Stepping straight to the
-// next value snaps the whole view by 12.5%, which is what "the zoom out is not smooth"
-// means -- there was no transition at all, only a jump.
+// next value snaps the whole view by 12.5%, which is what the zoom-out reported as not
+// smooth was -- there was no transition at all, only a jump.
 //
 // So this asserts the shape of the compromise rather than either half of it: no visible
 // jump on any frame, exact at rest, and the fractional stretch confined to the glide.

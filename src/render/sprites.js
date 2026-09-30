@@ -529,7 +529,7 @@ export function spriteAtlas(flip) {
  * right. For a running pose it is the TIP OF HIS SWORD, which in this sheet points down
  * and back past his heel -- so the sprite hung from the sword tip and his boots floated.
  * Measured: run1 and fall hovered 1.25 world units, ten screen pixels at the closest
- * zoom. That is what was reported as "still floating off the ground".
+ * zoom. That is the float the user reported, the Duke still off the ground.
  *
  * A foot row is the lowest row with a real FOOTPRINT rather than a dangling point. The
  * ink tapers smoothly down a blade, so there is no sharp edge to find; eight pixels --
@@ -814,7 +814,7 @@ function cutLimbs(bits) {
   // Then the torso's own right pauldron. The loop above stops at the first cut too small to
   // be an arm, and that was it: a plate of steel on the torso's shoulder, 378 px, a quarter
   // of an arm. Left on, it flew and lay as a stump -- the user, of the build with the fused
-  // arm already cut free: "one of the dukes arms doesnt detach properly when he dies", and in
+  // arm already cut free, still saw an arm that did not come off properly at the death, and in
   // the settled pieces the tabard still wore a steel shoulder. It comes off as a piece of its
   // own now (PLATE_MIN, cutLimb's 'plate' mode), and starts where it hung, like a cut arm.
   const plate = cutLimb(body, ref, 'plate');
@@ -1137,8 +1137,8 @@ function mirrorShare(a, b) {
  *
  * The parts drawing has four arms -- three near-copies of one arm (their silhouettes overlap
  * 0.79 to 0.85) and one of the other side, the arm cut off the torso -- and the burst threw all
- * four, with a fifth steel shoulder beside them, the plate cut off the tabard: "i just saw 4 arms
- * pop out when i died" (the user, 2026-09-29). Kept: the two arms most nearly each other's mirror
+ * four, with a fifth steel shoulder beside them, the plate cut off the tabard: the user saw four
+ * arms fly out at a death (2026-09-29). Kept: the two arms most nearly each other's mirror
  * image, a left and a right (on this sheet the cut arm and a loose one, 0.74 of their silhouettes
  * shared with one flipped, against 0.53 to 0.60 for the other two), and no plate: each arm wears
  * its own pauldron. PARTS_BITS keeps every piece the drawing was cut into, for the tests that
@@ -1399,8 +1399,8 @@ export const CROWN_GEMS = Object.fromEntries(NAMES.map((n) => [n, gemsFor(n)]));
 // clamped at 6 and 7 units a copy: on a launch they hung 28 units -- his height -- under
 // his boots, a straight line where his path curves. Each copy's cell bottom sat on his
 // feet where drawSprite lowers the cell by FOOT_DROP, and no copy took the landing squash
-// or the tuck's spin, so even the nearest was a different shape from him. The player saw
-// it "trailing way behind him when it should be on top of him".
+// or the tuck's spin, so even the nearest was a different shape from him. The user saw it
+// trailing far behind him, where it should have been on top of him.
 //
 // It was replaced by a halo: rings of light round his outline, placed by the code that
 // places the sprite. That fixed the placement and lost the look, and the roll broke it.

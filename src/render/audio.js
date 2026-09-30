@@ -31,7 +31,7 @@
 // terms: the tempo by a few percent a bar at most, the key only on the bar line where a
 // zone arrives (its chime rings on that same downbeat), never twice in eight bars, and
 // the theme never twice in one loop. They used to change at random moments and far too
-// often, which is what the user heard ("changing too randomly and too much"): a
+// often, which is what the user heard as music that changed too much, at random: a
 // companion joining or slipping moved the whole piece mid-phrase, the key stepped every
 // 200 floors out of step with the zones, the tempo swung up to 35% in one bar of a
 // human-paced climb, and past the first lap a theme could be handed over after five bars.

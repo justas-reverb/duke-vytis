@@ -472,8 +472,8 @@ export function warmComboText(game = null) {
  * 21 ms cold, headless): measured in an offscreen Electron window at the title screen's 60 fps,
  * the first 2.3 s after the page came up had frames of 5 to 28 ms of the game's own work, one
  * or more new canvases a frame, where every frame after them was under 2 ms -- a stutter at
- * every launch, and with LOW LATENCY's hint a frame caught half drawn ("the ui in the mainenu
- * still glitches out sometimes visually it starts to stutter and flickers", 2026-09-29).
+ * every launch, and with LOW LATENCY's hint a frame caught half drawn (the user still saw the
+ * main menu stutter and flicker at times, 2026-09-29).
  */
 export function warmComboTextAll(game = null, cap = 5000) {
   const lap = game && game.heights ? game.heights.lap : 1;

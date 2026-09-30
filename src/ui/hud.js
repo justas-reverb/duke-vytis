@@ -52,8 +52,8 @@ const BANNER_TOP = 150;
 // holds his feet 42% up the screen (CAM_ANCHOR), about row 157, and the first line ran
 // 150-157, so in bot play at the player's defaults he covered it 22% of the time -- and at
 // the start of a run, standing on the ground waiting to begin, every time. The HUD is drawn
-// under the characters, so the nudge came up behind his shield and boots ("make sure the
-// duke doesnt obfuscate the encouraging text at the start of the screen", 2026-09-28).
+// under the characters, so the nudge came up behind his shield and boots (the user asked for
+// the Duke never to hide the encouragement at the start of a run, 2026-09-28).
 // Measured over the same runs, his drawn box (+-26 across and 51 up: the widest and tallest
 // of his live poses) covers a centred band at 170-180 0.11% of the time and nothing from 180
 // down. 178 is under his feet and clear of the companions' calls, which stand up from row

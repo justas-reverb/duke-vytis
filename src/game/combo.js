@@ -1,7 +1,7 @@
 // Combo tracking.
 //
-// The brief: "combos when you double and triple jump and bounce from side to side".
-// So a combo is not only about floors cleared -- air jumps and wall bounces feed it
+// The brief asked for combos from double and triple jumps and from bouncing between the
+// walls. So a combo is not only about floors cleared -- air jumps and wall bounces feed it
 // too. Two separate quantities:
 //
 //   floors  -- how far up the chain carried you. Drives the score quadratically,
@@ -137,9 +137,9 @@ export class ComboTracker {
   // bounce or an air jump every five floors or so) -- so a chain paid as the CUBE of its
   // length. A chain held at full momentum lasts as long as the player keeps climbing, and
   // one of 2000 floors banked hundreds of millions; the menu's bot, 3,777,933,653 for 5089.
-  // The user, of their own runs: "can we make the scores be a normal reasonable number but
-  // not hundreds of millions?" A trick ADDS now, and a floor of a chain is worth what a
-  // floor climbed is (CHAIN_FLOOR_POINTS, TRICK_POINTS):
+  // The user, of their own runs, asked for scores of a reasonable size rather than hundreds
+  // of millions. A trick ADDS now, and a floor of a chain is worth what a floor climbed is
+  // (CHAIN_FLOOR_POINTS, TRICK_POINTS):
   //     10 floors, no tricks, x1         ->        100
   //    125 floors, 25 tricks, x2         ->      3,750
   //    400 floors, 80 tricks, x5         ->     30,000

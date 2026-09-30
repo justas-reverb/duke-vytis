@@ -453,9 +453,9 @@ function drawLower(ctx, all) {
 // ---------------------------------------------------------------------------
 // THE TITLE SCREEN ON A PHONE (drawMenu's `touch`). A phone has no keys to name, so what the key
 // hints said becomes things to tap: TAP TO CLIMB where PRESS SPACE TO CLIMB stands, and a button
-// for each screen a key opens, on the plaque where the hints stood -- the user, 2026-09-29, "can
-// we rebuild a nice menu screen for the mobile version so its easier to use?". What a finger hits
-// is what is drawn (menuTargets), in the same view units.
+// for each screen a key opens, on the plaque where the hints stood -- the user asked for a title
+// screen made for phones, easier to use by touch (2026-09-29). What a finger hits is what is
+// drawn (menuTargets), in the same view units.
 
 /**
  * TAP TO CLIMB [view units]: about the prompt's width, where it stood, a thumb tall. The view is
@@ -625,7 +625,7 @@ export function drawOptions(ctx, settings, sel, t, loop, rows = optionsFor(), to
   fillView(ctx);
   mLine(ctx, 'gold', 'OPTIONS', VW / 2, 8, 2, 'center');
 
-  // The line that actually answers "why is it a tiny screen".
+  // The line that actually explains a game filling only part of the screen.
   const fs = isFullscreen();
   if (!touch) {
     mText(ctx, fs ? GOOD : WARN, fs ? 'FULLSCREEN: ON' : 'FULLSCREEN: OFF  <- PRESS F FOR A FULL 4K SCREEN',
@@ -696,9 +696,8 @@ const BLOCKED_PANEL = { x: 56, y: 84, w: 368, h: 94 };
  * THE ATTRACT VIEW (main.js): after ATTRACT_IDLE seconds with no key, button or click on the
  * title screen, the menu and its wash fade out over ATTRACT_FADE seconds and the attract demo
  * is the whole screen -- the game played, nothing over it but this prompt -- until any input
- * brings the menu back. The user, 2026-09-29: "make the menu items disappear and allow for the
- * bot to be fully viewed if we are idle for 10 seconds on the screen. have a prompt to continue
- * playing flashing while thats going on."
+ * brings the menu back. The user asked for it on 2026-09-29: after ten idle seconds the menu
+ * clears so the bot can be watched whole, with a flashing prompt to continue playing.
  */
 export const ATTRACT_IDLE = 10;      // s of no input on the title screen
 export const ATTRACT_FADE = 0.6;     // s the menu takes to fade out

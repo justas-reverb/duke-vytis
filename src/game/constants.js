@@ -129,10 +129,10 @@ export const AIR_JUMP_UNLOCK = 0.98;
 // ASCENSION. Beating ZENITH -- reaching the top of a lap of the tower, CYCLE_FLOORS, where
 // GLORY is called -- makes every jump he makes a tenth higher and his clock a tenth quicker,
 // and beating it again does both again: x1.1 at floor 2300, x1.21 at 4600, where it stops
-// (ASCENT_LAPS). It was x2 height and x1.25 clock a lap ("if we beat zenith he should get a
-// 2x bounce and speed boost", 2026-09-28), and on the title screen that read as a bug: "the
-// bot in the background seems to be going at supersonic and not bound by the rules of the
-// game ... can we have a 1.10x speed increase instead of literally doubling it?" (2026-09-29).
+// (ASCENT_LAPS). It was x2 height and x1.25 clock a lap (the user asked for a doubled bounce
+// and a speed boost for beating ZENITH, 2026-09-28), and on the title screen that read as a
+// bug: the bot behind the menu looked far too fast and free of the game's rules, and the user
+// asked for a 1.1x boost instead of the doubling (2026-09-29).
 // Measured on the attract demo of the day, its climb went from about 1,100 floors a minute
 // below 2300 to 2,800 past it -- 24,000 floors in ten minutes -- as every jump cleared twice
 // the floors at a quicker clock and the air jumps it no longer needed fell from 108 a minute
@@ -259,7 +259,7 @@ export const SQUEEZE_PERIOD = 150;     // floors; typical 120-180
 // How far the factor falls at the trough, as a fraction of the width. The unsqueezed
 // width in a fully open shaft past 2100 is 60-112 units, mean 85; at 0.72 the trough
 // mean is about 24 -- right on SQUEEZE_W_MIN -- so roughly half the trough floors sit at
-// the minimum and the rest are only a few units wider. That is the "almost unfair" the
+// the minimum and the rest are only a few units wider. That is the near-unfair squeeze the
 // brief asked for: every one of them is a proven landing, and very few of them are a
 // comfortable one.
 export const SQUEEZE_DEPTH  = 0.72;    // fraction, 0..1; typical 0.65-0.78
@@ -329,10 +329,9 @@ export const FLOOR_GRAB = 240;
 // DIFFICULTY (settings.js, the OPTIONS row; Game.newRun): how hard the fire presses. `rise`
 // multiplies its speed [x; the speed above, idle urgency included] and `lead` how far it may
 // trail the best floor [x; RISE_LEAD .. RISE_LEAD_MIN]. EASY is the fire as it was until
-// 2026-09-28, both 1, an identity; the user: "can we also make the falloff floor rise faster
-// because it is way too slow and allows way too much leeway this should be easy mode. lets make
-// a medium and a hard mode which we can change in the settings". A run keeps its difficulty
-// and a replay's header carries it (replaycodec.js, by its place in this list: never reorder,
+// 2026-09-28, both 1, an identity: the user found it far too slow and forgiving, and asked for
+// it to become EASY beside a faster MEDIUM and HARD, chosen in the options. A run keeps its
+// difficulty and a replay's header carries it (replaycodec.js, by its place in this list: never reorder,
 // only add at the end). Indexed from settings.js by the same place.
 export const DIFFICULTIES = [
   { name: 'EASY', rise: 1, lead: 1 },

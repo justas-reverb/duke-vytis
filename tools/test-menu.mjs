@@ -41,8 +41,8 @@
 // 5. THE DEMO BEHIND IT DOES NOT BLINK. The attract run crosses a zone every ten seconds or
 //    so, and each arrival used to flash the whole screen white under the menu -- with no zone
 //    title to say why, since the demo draws no HUD -- after its backdrop had already jumped
-//    to 0.6 of the next zone half a second before ("my whole menu starts blinking",
-//    2026-09-28). (a) The title screen as main.js draws it, 60 frames a second from before
+//    to 0.6 of the next zone half a second before (the whole menu blinking, as the user saw
+//    it, 2026-09-28). (a) The title screen as main.js draws it, 60 frames a second from before
 //    the demo's first arrival until its dissolve is over: no frame's mean luma differs from
 //    the one before by CALM_MAX or more (every arrival measured +20 to +24; now about 2, the
 //    menu's own breathing and the bot's motion). (b) Over two arrivals, what the backdrop and

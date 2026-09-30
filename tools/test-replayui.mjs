@@ -1095,8 +1095,8 @@ function listWords() {
     tap('KeyR');
     ok(R.mode === 'list' && L.sel === 0 && L.entries.length === 2, `G. the REPLAYS screen opened on row ${L.sel}, not at the top`);
   }
-  // The cursor moves over the replays in silence: the user, 2026-09-29, "remove the sound from
-  // the replay that plays when you hover over it". Down and up again, on the two rows.
+  // The cursor moves over the replays in silence: the user asked for the sound a row made as the
+  // cursor passed over it to go (2026-09-29). Down and up again, on the two rows.
   {
     const A = R.audio, made = [];
     const was = A.sfxMenu;

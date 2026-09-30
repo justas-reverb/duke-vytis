@@ -5,8 +5,8 @@
 // wants and it is drawn with his eyes CROSSED OUT, because on the artist's sheet it was
 // the death frame.
 //
-// Everything else about it is right, and "the character standing still holds no weapon"
-// is a worse problem than two repaired pixels. So the crosses are erased and a pair of
+// Everything else about it is right, and a character standing still with no weapon in his
+// hand is a worse problem than two repaired pixels. So the crosses are erased and a pair of
 // open eyes is drawn where they were.
 //
 // FOUND, NOT TYPED. The crosses are located by looking for dark pixels ENCLOSED BY SKIN

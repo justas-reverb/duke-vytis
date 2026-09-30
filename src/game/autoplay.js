@@ -5,8 +5,8 @@
 // the game can actually do, including dying, which is why the menu restarts it.
 //
 // Since 2026-09-29 it plays the game a player gets: the real tower, the real fire, at the
-// game's default settings (startDemo). "i want a full showcase of the actual game there but
-// the bot should be impeccably good" (the user). Until then the demo was a game of its own --
+// game's default settings (startDemo): the user asked for the title screen to show the real
+// game in full, played flawlessly. Until then the demo was a game of its own --
 // a flow tower (a ramp at the steepest legal slope, ledges 1.6 times as wide, no squeeze), a
 // fire at 0.55 of EASY's, 130% -- and the bot had been tuned for four rounds against it.
 //

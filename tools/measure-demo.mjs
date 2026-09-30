@@ -1,7 +1,7 @@
 // The attract demo, measured against what the title screen is supposed to show.
 //
-// "i want a full showcase of the actual game there but the bot should be impeccably good"
-// (the user, 2026-09-29). The demo plays the real tower at the game's DEFAULT settings under
+// The user asked for the title screen to show the real game in full, played flawlessly
+// (2026-09-29). The demo plays the real tower at the game's DEFAULT settings under
 // the real fire (autoplay.js startDemo, settings.js DEFAULTS), so what this prints is what the
 // menu shows -- measured, not eyeballed. Per tower, over a run of up to --minutes:
 //

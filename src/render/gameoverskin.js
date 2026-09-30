@@ -24,7 +24,7 @@
 //     the HUD's zone inks on its thick keyline, the same letterforms at the same size, and
 //     beside the menus the board read as the one screen still in the old flat blocks: every
 //     label as loud as every number, the prompt a slab of white letters, eleven rows nine
-//     units apart in one bright yellow ("the stats should use a nicer font", 2026-09-29).
+//     units apart in one bright yellow (the user asked for a better font there, 2026-09-29).
 //     The lettering is the Duke's in every zone, as the menus' is over every zone the attract
 //     run climbs; the zone is in the frame, its dressing and GAME OVER.
 //

@@ -368,8 +368,8 @@ const tickT = () => { tick(); clock += 1 / FPS; };
   // inside the viewport, no two overlapping, every one at least 40 CSS px (about 6 mm) across.
   // At every TOUCH KEYS size (60% to 130%): inside, none over another. At the first cut's size
   // every button at least 40 CSS px (about 6 mm) across; ESC and the top row keep that size at
-  // every size -- TOUCH KEYS is the play keys' ("the left / right / space buttons should be
-  // smaller and adjustable").
+  // every size -- TOUCH KEYS is the play keys' (the user asked for < > and SPACE smaller, and
+  // adjustable).
   const strip = ['ENTER', 'S', 'R', 'N', 'P', 'E', 'I', 'DEL'];
   const problems = [];
   for (const size of [0.6, 0.8, 1, 1.3]) {
@@ -436,8 +436,8 @@ const tickT = () => { tick(); clock += 1 / FPS; };
   ok(game.state === STATE.MENU, `B. the page did not boot to the title (${game.state})`);
   ticks(1);
   settle();
-  // Nothing of the fixed keys and no top row: the user, 2026-09-29, "up and down arrows appear
-  // on the main menu when they do nothing there".
+  // Nothing of the fixed keys and no top row: the user found up and down arrows on the main
+  // menu that did nothing there (2026-09-29).
   ok(ids().length === 0, `B. the title draws its own buttons and needs no fixed keys, but shows [${ids().join(' ')}]`);
   // Its buttons, as a finger finds them: TAP TO CLIMB, then the row, left to right.
   const tg = T.targets();

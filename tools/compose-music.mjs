@@ -334,15 +334,15 @@ function heavens() {
 
 // === THE MENU: A FANFARE THAT OPENS INTO A SONG =================================
 //
-// Asked for on 2026-09-23: "something that starts fast and is just in your face with it.
-// big brazen chords into a lovely harmony." The menu before this was the old climb hook in
+// Asked for on 2026-09-23: a menu theme that starts fast and loud, big brassy chords opening
+// into a lovely harmony. The menu before this was the old climb hook in
 // E Dorian at 138 bpm, one square note at a time over an eighth-note bass: the slowest
 // thing on the soundtrack after the lament, and nothing in it hit. (The one before THAT
 // opened on eight bars of sparse calm, a fine shape for a track you sit and listen to and
 // a bad one for a screen a player is on for twelve seconds. This one opens on a hit.)
 //
-// Then, of the build that had it (2026-09-28): "the main menu music should start going in
-// to the nice melody sooner the in your face part a tad overdone there". The fanfare was
+// Then, of the build that had it (2026-09-28): the user wanted the melody to arrive sooner,
+// and found the loud opening a little overdone. The fanfare was
 // eight bars -- the call four times, on E, E, A and B -- twelve seconds of brass before the
 // song, and 1.8 LU louder than it, every stab a five-note chord. It is four bars now, the
 // call on the tonic and then on the dominant, and after each call's first chord the brass
@@ -553,7 +553,7 @@ function menu() {
     // CHOIR_MIN. Over the loop -14.8 LUFS against the climb themes' -13.8 to -14.9; the
     // fanfare -14.1 and the song -15.2, so the brass is the loud part and the song opens
     // out below it -- by 0.9 LU since the fanfare was halved and its stabs went to four
-    // notes; the eight-bar one of five-note stabs was 1.8 over (-13.4), "a tad overdone".
+    // notes; the eight-bar one of five-note stabs was 1.8 over (-13.4), a little overdone.
     // The way back, still five-note chords into the hit, is -14.0. The first levels (lead 0.09, bass 0.22, choir 0.9, brass 0.07) had it
     // the wrong way round -- the song 1.4 LU OVER the fanfare, the brass 4 dB under the
     // bass. The answers' stabs are five-note chords for the same reason: at four, with
@@ -573,8 +573,9 @@ function menu() {
 // What plays from the moment he falls until he climbs again: the fall, the landing, and
 // the scoreboard for as long as the player reads it.
 //
-// Asked for (2026-09-28): "redo the game over music its bad something like phantom of the
-// opera but 8bit like a spooky scary death with suspension." The STYLE, then: a gothic pipe
+// Asked for (2026-09-28): the game-over music redone, since the user found it poor --
+// something in the manner of The Phantom of the Opera, but 8-bit, a spooky death held in
+// suspense. The STYLE, then: a gothic pipe
 // organ, minor, dread that builds, chords that hang. Nothing here is taken from that
 // musical, which is under copyright. The one quotation is older and free: the opening
 // gesture of J. S. Bach's Toccata and Fugue in D minor, BWV 565 -- the mordent on the

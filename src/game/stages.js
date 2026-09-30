@@ -7,8 +7,8 @@
 // by index would play the cellar march in the heavens from the second cycle on.
 //
 // DOWNTOWN is BELOW on purpose. It is the town at night at the foot of the castle, the
-// last of the earth before the climb reaches stone -- the user's call, "it fits better
-// there". (It was called VILLAGE then; the user renamed it DOWNTOWN on 2026-09-23.)
+// last of the earth before the climb reaches stone -- the user's call, as the better fit.
+// (It was called VILLAGE then; the user renamed it DOWNTOWN on 2026-09-23.)
 
 import { THEMES, themeIndexFor, bandFor } from './themes.js';
 

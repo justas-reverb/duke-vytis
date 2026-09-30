@@ -8,8 +8,8 @@
 //   NEAR  a few big curtains, the longest tongues, darker than MID and lit only along
 //         their crowns and ridges, each on a bough of its own
 //
-// REDRAWN, 2026-09-28: "the swamp background looks a bit ugly". It passed every number
-// below and still looked it, and in a real frame why was plain: a screen of free-floating
+// REDRAWN, 2026-09-28, when the user found the swamp's background ugly. It passed every
+// number below and still looked it, and in a real frame why was plain: a screen of free-floating
 // green tongues striped column by column, crossed by hundreds of one-pixel lines -- the
 // run-off, the drips and the strands -- so the whole zone read as smeared, scratched
 // glass. Four things changed. The run-off and the drips are gone (the board's streaks were

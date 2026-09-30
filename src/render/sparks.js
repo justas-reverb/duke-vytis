@@ -5,8 +5,8 @@
 // the zone's particle colour, drifting UP from his back whenever he was fast, and driven
 // by his momentum alone -- so a 300-floor combo looked exactly like one quick jump, and
 // the only thing a chain ever added was one confetti burst per milestone. A square is
-// not a spark, and one colour per zone is not the "little stars and vibrant colours" the
-// brief asked for.
+// not a spark, and one colour per zone is not the small, brightly coloured stars the brief
+// asked for.
 //
 // Now every piece is a SPRITE drawn once, at art resolution -- one sprite pixel is one art
 // pixel, 1/PX of a world unit, the Duke's own scale -- from the ASCII below, in a ramp of

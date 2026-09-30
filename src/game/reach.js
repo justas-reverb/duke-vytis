@@ -1,7 +1,7 @@
 // Reachability: the proof that the tower is always climbable.
 //
-// The requirement is "platforms are random but never broken so it is unclimbable".
-// That has to hold for the WORST case, which is a player standing dead still on a
+// The requirement: the ledges are random, but never so broken that the tower cannot be
+// climbed. That has to hold for the WORST case, which is a player standing dead still on a
 // platform with zero momentum -- the weakest jump the game can produce. Everything
 // here is computed for that player. A moving player is strictly better off.
 //

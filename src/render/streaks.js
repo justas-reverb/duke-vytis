@@ -43,9 +43,8 @@
 //     round the citadel, lightning white-violet in the storm. They were, until 2026-09-28,
 //     a hue FAR from each backdrop's -- amber, torch orange, orange, gold, lantern orange,
 //     gold, yellow in the first seven zones -- which stood out, and stood out the same
-//     orange everywhere: "lets make the zooming through eye candy change color so it
-//     better matches the background and effects it staying orange the whole time messes
-//     with the visuals". The rim is what carries ZENITH's streaks across its pale light
+//     orange everywhere; the user asked for them to take each zone's colours, since orange
+//     over everything spoilt the picture. The rim is what carries ZENITH's streaks across its pale light
 //     shafts, and STORM's across its clouds.
 //   - QUIETER THAN A LEDGE. They run BEHIND the ledges now (see below), so a line can
 //     never lie across a lit top row, and no streak pixel is brighter than that zone's

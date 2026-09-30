@@ -14,9 +14,9 @@ bot has to be re-measured after each (`tools/measure-demo.mjs`). See also
 The title screen background is not a picture. It is **a second, live game** running the real
 simulation, driven by a bot through a synthetic input (`AutoInput`). Since 2026-09-29 it is
 **the game a player gets**: the real tower, the real fire, at the game's default settings.
-The user, of the demo before that: "the bot in the background seems to be going at supersonic
-and not bound by the rules of the game ... it looks buggy. i want a full showcase of the actual
-game there but the bot should be impeccably good."
+The user, of the demo before that: the bot behind the menu looked far too fast, free of the
+game's rules and buggy; the title screen should show the real game in full, played
+flawlessly.
 
 - **The settings are the game's defaults, read, never the player's.** `startDemo` (in
   `autoplay.js`) starts every demo -- `main.js`'s, and every suite's and tool's that stages one
@@ -31,8 +31,8 @@ game there but the bot should be impeccably good."
   (`DEMO_RISE_SCALE`, gone) until then (mutant `demo-slow-fire`).
 - **The ascension is the one a player gets**: x1.1 of height and clock at floor 2300 and again
   at 4600 ([GAMEPLAY.md](GAMEPLAY.md), *THE ASCENSION*). It was x2 and x1.25 a lap, and the
-  demo, which beats ZENITH in every run, showed the doubling more than anyone -- the
-  "supersonic".
+  demo, which beats ZENITH in every run, showed the doubling more than anyone -- the speed
+  that looked like a bug.
 
 Everything a real run has is in it -- the zones and their crossfades, the squeeze from 2100,
 the companions from floor 350 by the player's COMPANIONS setting, the combo trail and the speed
@@ -65,7 +65,7 @@ each version, ten minutes each:
 | a turn and a turn back inside 0.15 s, in ten minutes (x1.1) | **5,502-6,196** | -- | **14-23** |
 | the bot's cost, ms per second of play | 1.5 | -- | 3.8-4.3: a step 0.37 ms at the 99th percentile once warm, the worst about 2 ms (2.8-4.4 while the JIT warms) |
 
-The flicker is what "it looks buggy" was: the old bot re-chose its stick every frame, and a
+The flicker is what made it look buggy: the old bot re-chose its stick every frame, and a
 flight of a second with combo-lifted wall bounces lands chaotically, so the choice changed from
 frame to frame and the sprite turned left and right hundreds of times a minute (the row *A plan
 remade every frame flickers* below). On the old demo's own five towers at the same settings, the
@@ -270,7 +270,7 @@ planner of rounds one to four; the rest are round five's.
 | **A callout on a screen with no HUD** | The title screen draws no HUD, so a demo callout was a white flash and a shake with no word. A demo counts the callouts without firing them. Before an effect fires in attract mode, check the menu draws the thing it announces. |
 | **A tower shaped for the wrong climber** | The flow tower made the old bot look flawless (579 -> 826 floors/min) and hid everything it could not do: on a player's tower at the defaults it died on 30 towers of 30. A demo on a tower nobody plays is not a showcase of the game. The flow tower stays in `generator.js` only because the replay fingerprint's probe climbs one. |
 | **Short hops against a fast fire** | The old planner's deaths came in the air after planned hops of one to six floors (19 of 30): a jump at speed rises to its full apex whatever it is aimed at, so a short hop is a long flight, and MEDIUM's fire gains seven floors in 0.85 s. Value a flight by its time as well as its floors, and a landing by the jump it leaves (`timeWeight`, `nextProxy`). |
-| **A plan remade every frame flickers** | Flights of a second with combo-lifted wall bounces land chaotically -- one step of difference in the stick moved a landing 177 units -- so a best choice remade every frame changed from frame to frame, and his facing turned 700-800 times a minute, the sprite flickering left and right: the "looks buggy". Commit to the flight, verify it each step, switch only for a clearly better one (`switchMargin`), and charge a turn and a turn back (`twitchCost`). 676-740 turns a minute became 100. |
+| **A plan remade every frame flickers** | Flights of a second with combo-lifted wall bounces land chaotically -- one step of difference in the stick moved a landing 177 units -- so a best choice remade every frame changed from frame to frame, and his facing turned 700-800 times a minute, the sprite flickering left and right: what looked buggy. Commit to the flight, verify it each step, switch only for a clearly better one (`switchMargin`), and charge a turn and a turn back (`twitchCost`). 676-740 turns a minute became 100. |
 | **Verify what was promised, not what was hoped** | The first verify compared the flight's whole outcome each step, overlap included; a flight chosen with a small overlap failed it every frame and was re-planned forever. Verify the landing floor only (`check`: does it still land on `target`?). |
 | **The model must be the step, bit for bit** | An approximate forward model (closed-form arcs, the walls folded in) chose flights the game then flew elsewhere. `fly()` repeats `Player.step`'s sums in its order at his clock; if `Player.step` changes, `fly()` must change with it. No suite compares the two landing for landing: a drift shows first as misses, stalls and edge landings in `measure-demo.mjs`, so re-measure after any change to the physics. |
 | **The view glides; he does not wait for it** | On a tower that widens, the camera eases out to the new shaft; a flight to the new far wall leaves part of him past the edge of the view for a few steps (82 towers of 200 had one). Charge each step beyond the view (`hiddenCost`); the demo seeds have none. |

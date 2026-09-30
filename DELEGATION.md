@@ -407,7 +407,7 @@ the last thing it built.) What could not be prompted for is impossible to get wr
 Where its work still showed then: the game-over lament's SHAPE was still the model's -- the
 descending E-minor phrase from its second music job, four sessions ago. What changed this
 round is timing, not melody. It opened on two half notes and closed on four
-consecutive E3s totalling 44% of the loop, which is the "it drags" the user heard. The
+consecutive E3s totalling 44% of the loop, which is the drag the user heard. The
 model wrote a good tune with no sense of how long thirteen seconds is on a death screen
 -- which is the same missing sense of scale that had it writing `topSpeed >= 8` for what
 was then a 0-330 range. Two of those E3s went then: the lament became three bars, 48

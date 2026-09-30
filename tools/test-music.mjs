@@ -45,7 +45,8 @@ function checkNotes(label, voice) {
 /**
  * The longest unbroken run of ONE pitch, as a fraction of the loop.
  *
- * This is "it drags on too long before it loops back", made mechanical. The gameover
+ * This is the complaint that a loop drags on too long before it comes round, made
+ * mechanical. The gameover
  * lament used to close on four consecutive E3s totalling 28 of its 64 sixteenths --
  * nearly five seconds of one note, 44% of the loop, every time round. Every individual
  * note passed every check above; the problem only exists at the scale of the phrase.
@@ -125,8 +126,8 @@ for (const name of ['menu', ...CLIMB, 'gameover']) {
 //
 // The menu used to be slower than every climb theme as well, on the reasoning that the
 // menu is waiting for the climb and the climb is the thing being done. The user asked for
-// the opposite on 2026-09-23 -- a menu that "starts fast and is just in your face with it"
-// -- so it is now the fastest thing WRITTEN. It is heard at TEMPO_MIN of that (main.js
+// the opposite on 2026-09-23 -- a menu that starts fast and loud -- so it is now the fastest
+// thing WRITTEN. It is heard at TEMPO_MIN of that (main.js
 // drives the intensity to 0 off the climb), 160-180 bpm as asked, while a climb theme at
 // full tilt runs at up to TEMPO_MAX, x1.30, of its own (x1.70 until the climb's music was
 // steadied, 4fbe0f9).
@@ -151,8 +152,8 @@ for (const name of CLIMB) {
 
 // --- the menu: a fanfare that opens into a song --------------------------------------
 //
-// What was asked for on 2026-09-23, made mechanical: "something that starts fast and is
-// just in your face with it. big brazen chords into a lovely harmony." Fast as heard on
+// What was asked for on 2026-09-23, made mechanical: a menu theme that starts fast and loud,
+// big brassy chords opening into a lovely harmony. Fast as heard on
 // the title screen; a chord on the first beat with the bass under it and nothing before
 // it; the brass in real chords; a song in thirds and sixths where the brass steps aside;
 // and a loop that comes back round on the brass rather than out of a quiet bar.

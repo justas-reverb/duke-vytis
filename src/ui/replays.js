@@ -267,8 +267,8 @@ export class ReplayUI {
 
   /**
    * R on the scoreboard: the run just played, from its first step. It used to open ten seconds
-   * before the catch and stop at the impact, offering the whole run after; the user: "make sure
-   * when were replaying it starts at the beginning". The seeks still go anywhere in it, and a
+   * before the catch and stop at the impact, offering the whole run after; the user asked for a
+   * replay to start at the beginning. The seeks still go anywhere in it, and a
    * seek near the end is a restore of the recorder's copies, not a re-run of the climb.
    */
   openInstant() {
@@ -632,8 +632,7 @@ export class ReplayUI {
     if ((this.busy || this.prep) && code !== 'Escape') return true;
     const n = L.entries.length;
     // The cursor moves over the replays in silence. It blipped on every row, and the user asked
-    // for it gone (2026-09-29: "remove the sound from the replay that plays when you hover over
-    // it"); watching one, deleting, pinning and leaving still sound.
+    // for that sound gone (2026-09-29); watching one, deleting, pinning and leaving still sound.
     if (code === 'ArrowUp' || code === 'KeyW') { if (n) { L.sel = (L.sel + n - 1) % n; this.scrollTo(); } }
     else if (code === 'ArrowDown' || code === 'KeyS') { if (n) { L.sel = (L.sel + 1) % n; this.scrollTo(); } }
     else if (code === 'Escape') { this.mode = null; L.confirm = null; A.sfxMenu('back'); }
@@ -660,8 +659,7 @@ export class ReplayUI {
       return this.mode === 'list';
     }
     // First the question: the options the run was played at beside the player's own, and
-    // whether to race it at the same ones ("make sure it lists all the options that replay
-    // used and ask if you want to use the same options so it would match", 2026-09-29).
+    // whether to race it at the same ones, so the two match (the user's request, 2026-09-29).
     // The answer comes back through askKey, and the race goes on from confirmRace.
     this.ask = { replay: r.replay, compatible: r.compatible, state: this.game.state, mode: this.mode };
     if (this.mode === 'list') this.list.confirm = null;
