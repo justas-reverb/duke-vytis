@@ -1,6 +1,9 @@
 # Duke Vytis and the Quest for New Lands
 
-![Duke Vytis leaping through the Swamp at floor 503, a companion climbing beside him](docs/images/climb.png)
+![The title, DUKE VYTIS in gold with the Vytis shield between the words, over Duke Vytis leaping up the Citadel on a trail of gold stars, five companions around him on the ledges and in the air and the smallest falling into the fire below](docs/images/climb.png)
+
+*The whole cast at once: a scene staged from the game's own pieces and drawn by its own renderer
+([`tools/shot-promo.mjs`](tools/shot-promo.mjs)). In a run they join you one at a time.*
 
 **A pixel-art tower climber.** You are Duke Vytis, a crowned grand duke in steel plate, and
 the tower you are climbing is on fire. Run, jump and bounce off the walls up an endless tower
