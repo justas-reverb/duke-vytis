@@ -196,31 +196,18 @@ author's machine or accounts, or quotes the user's own messages, or if a Markdow
 file that is not published (a link into a private one is written as its words). `--check` runs
 the checks alone. The installers go on the public repository's Releases page, not into its files.
 
-**Nothing in git quotes the user** -- the public copy, the code, the docs or the private notes. A
+**Nothing in git quotes the user** -- the code, the comments, the docs or the private notes. A
 decision is written in plain words (the user asked for a joystick, swappable in the options),
-never as the message that asked for it: his standing rule. On 2026-09-30 the public copy was
-found quoting him word for word, typos included, in the comments and docs of some sixty files,
-and every quotation was rewritten as the decision it recorded, its dates and measurements kept.
-The export's fourth gate fails on a quotation of two words or more beside an attribution (the
-user, the owner, asked for, reported, a date) and on his way of typing anywhere (contractions
-without the apostrophe, and the like; `quotedMessages` in the tool says exactly what). Measured
-on the tree before the rewrite (`327e716`): 52 files flagged, every one of them a file that quoted
-him, and nothing in the tree after it. It cannot see a phrase of his used as a bare label, with
-no attribution, date or typo, so the rule is kept by writing and the gate only catches.
-`tools/test-export.mjs` (in `npm test`; private with the tool it imports) plants thirteen forms
-of a quotation and must find each, lets through the quotations the game keeps (its own text in
-capitals, error messages, section names), and holds every tracked text file to the rule,
-`docs/STATUS.md` included.
-
-**The public history still quotes him.** The gate stops new quotations; it cannot take back the
-four public commits, each of which carries 117 to 141 of them in 46 to 50 files, 21 to 23 of
-those under `src/`, which GitHub Pages serves (`0554229` 1.0.0, `c99328d` 1.0.1, `3093c4c` 1.0.2,
-`7de8dcc` the key art; measured 2026-09-30). Only a fresh-history re-export and a force push
-would remove them, and that moves the tags the v1.0.0-v1.0.2 Releases hang on and rebuilds the
-Pages site. The Releases' downloads carry them too, whatever happens to the history: the
-installers pack `src/` with its comments into `app.asar`, and the APK into `assets/www/src/`
-(found in both 1.0.2 builds in `dist/`), so only rebuilt assets would clear those. That is the
-user's decision, not taken as of 2026-09-30.
+never as the message that asked for it: his standing rule, kept in every file since
+2026-09-30. The export's fourth gate fails on a quotation of two words or more beside an
+attribution (the user, the owner, asked for, reported, a date) and on his way of typing anywhere
+(contractions without the apostrophe, and the like; `quotedMessages` in the tool says exactly
+what). It cannot see a phrase of his used as a bare label, with no attribution, date or typo, so
+the rule is kept by writing and the gate only catches. `tools/test-export.mjs` (in `npm test`;
+private with the tool it imports) plants thirteen forms of a quotation and must find each, lets
+through the quotations the game keeps (its own text in capitals, error messages, section names),
+and holds every tracked text file to the rule, `docs/STATUS.md` included. Its measurements are
+in STATUS.md.
 
 **Every save is a `dukevytis.` key** (`src/game/savekeys.js`): the settings, the stats, the
 replay store's index and texts, and that mute. They carried the project's working title until
