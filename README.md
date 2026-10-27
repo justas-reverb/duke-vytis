@@ -90,9 +90,6 @@ and it rises faster the higher you get -- stand around and it will catch you.
 Along the way, companions join you (the first waits at floor 350), there are 28 awards to
 win, and every run is kept as a replay you can watch again or race against as a ghost.
 
-**The full guide** -- every rule, every option, all 28 awards -- is
-**[docs/PLAYING.md](docs/PLAYING.md)**.
-
 ---
 
 ## What is in it
@@ -141,8 +138,7 @@ Windows application, and the same files run in any modern browser.
   were generated with Grok Imagine, and the idea, the direction, the play-testing and every
   decision are the author's (see Credits). Some of the content -- the companions' lines, the
   zones' palettes, the award names, early melodies -- was first drafted by a small language
-  model running locally, then checked and corrected; [DELEGATION.md](DELEGATION.md) is the
-  honest account of what it wrote and what survived.
+  model running locally, then checked and corrected.
 
 ### How the code is laid out
 
@@ -158,8 +154,7 @@ src/
   ui/               the menus and screens, the HUD, the replays screens, touch keys
 electron/           the Windows desktop shell
 tools/              test suites, screenshot tools, art importers, the music composer
-docs/               how each part works: architecture, gameplay, the tower, the bot,
-                    companions, the Duke, art, audio, testing, building
+docs/images/        the pictures on this page
 assets/             the icon and the source sprite sheets
 ```
 
@@ -174,10 +169,6 @@ npm run serve        # or in a browser, at http://127.0.0.1:8173/
 npm test             # every fast test suite, a few minutes
 npm run dist         # build the installer and the portable exe into dist/
 ```
-
-[docs/BUILD.md](docs/BUILD.md) has the rest of running and packaging it, and
-[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) how it all fits together; every part of the game
-has its own document in [docs/](docs/).
 
 ---
 
@@ -203,7 +194,7 @@ Co-authors:
 - **Grok** (xAI), with Grok Imagine -- the Duke's and the six companions' sprite sheets.
 
 Some of the companions' lines, the zones' palettes, the award names and early melodies were
-first drafted by a Qwen model running locally ([DELEGATION.md](DELEGATION.md)).
+first drafted by a Qwen model running locally.
 
 ## License
 
